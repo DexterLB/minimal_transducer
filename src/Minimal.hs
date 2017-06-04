@@ -8,6 +8,16 @@ import Transducer
 import qualified Data.HashMap.Strict as HashMap
 import Data.HashMap.Strict (HashMap)
 
+
+
+-- | the "transformation" version of addWord. The (transducer, lastWord) tuple
+-- | is transformed, adding the new word.
+addWordI :: (Trans, String)     -- ^ transducer, lastWord
+         -> (String, String)    -- ^ newWord, output
+         -> (Trans, String)     -- ^ newTransducer, newWord
+addWordI (t, prevWord) (newWord, output)
+    = (addWord t prevWord newWord output, newWord)
+
 -- | add a word to the transducer. It must be minimal except for the previous word,
 -- | and after this operation will be minimal except for the new word.
 addWord :: Trans
