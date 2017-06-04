@@ -99,22 +99,21 @@ instance Show Trans where
     show = (foldr (++) "") . (map (++ "\n")) . showTransLines
 
 instance Show State where
-    show = (foldr (++) "") . (map (++ "\n")) . showStateLines
+    show = (foldr (++) "") . (map (++ "\n")) . ((curry showStateLines) (-1))
 
 showTransLines :: Trans -> [String]
 showTransLines t
     =  (showTransDataLines t)
     ++ (showVerifyEquivLines t)
-    ++ (showMismatchingStatesLines t)
 
 showTransDataLines :: Trans -> [String]
 showTransDataLines Trans {states, start}
     =  ["transducer with start " ++ (show start)]
-    ++ (map ("  " ++) (foldr (++) [] (map showStateLines (HashMap.elems states))))
+    ++ (map ("  " ++) (foldr (++) [] (map showStateLines (HashMap.toList states))))
 
-showStateLines :: State -> [String]
-showStateLines State {sid, transition, final, output}
-    =  ["state " ++ show sid ++ ":"]
+showStateLines :: (Int, State) -> [String]
+showStateLines (n, State {transition, final, output})
+    =  ["state " ++ (show n) ++ ":"]
     ++ ["  transitions:"]
     ++ (map ("    " ++) (showMapLines transition))
     ++ ["  outputs:"]
@@ -126,20 +125,8 @@ showVerifyEquivLines t
     | verifyEquiv t = []
     | otherwise     = ["  WARN: transducer has wrong equivalence set"]
 
-showMismatchingStatesLines :: Trans -> [String]
-showMismatchingStatesLines t
-    | mis == [] = []
-    | otherwise = ["  WARN: transducer has mismatching states with keys: " ++ (show mis)]
-    where
-        mis = mismatchingStates t
-
 verifyEquiv :: Trans -> Bool
 verifyEquiv Trans {states, equiv} = (HashSet.fromList (HashMap.elems states)) == equiv
-
-mismatchingStates :: Trans -> [Int]
-mismatchingStates Trans {states} = filter checkState (HashMap.keys states)
-    where
-        checkState k = (sid (states HashMap.! k)) /= k
 
 showMapLines :: (Show k, Show v) => HashMap k v -> [String]
 showMapLines = (map showPair) . HashMap.toList
@@ -152,13 +139,12 @@ showFinalLines (Just output) = ["  final with output " ++ (show output)]
 
 
 instance Hashable State where
-    hashWithSalt salt State {sid, transition, final, output}
-        = hashWithSalt salt (sid, transition, final, output)
+    hashWithSalt salt State {transition, final, output}
+        = hashWithSalt salt (transition, final, output)
 
 -- **** Data ****
 
 data State = State {
-    sid :: Int,
     transition :: HashMap Char Int,
     final :: Maybe String,
     output :: HashMap Char String
@@ -185,7 +171,6 @@ juljul = updateEquiv $ Trans {
     start = 0,
     states = HashMap.fromList [
         (0, State 
-                0 
                 (HashMap.fromList [
                     ('a', 5),
                     ('d', 6),
@@ -201,7 +186,6 @@ juljul = updateEquiv $ Trans {
                 ])
         ),
         (5, State 
-                5 
                 (HashMap.fromList [
                     ('p', 2),
                     ('u', 3)
@@ -213,7 +197,6 @@ juljul = updateEquiv $ Trans {
                 ])
         ),
         (2, State 
-                2 
                 (HashMap.fromList [
                     ('r', 1)
                 ])
@@ -222,7 +205,6 @@ juljul = updateEquiv $ Trans {
                 ])
         ),
         (3, State 
-                3 
                 (HashMap.fromList [
                     ('g', 1)
                 ])
@@ -231,7 +213,6 @@ juljul = updateEquiv $ Trans {
                 ])
         ),
         (6, State 
-                6 
                 (HashMap.fromList [
                     ('e', 4)
                 ])
@@ -240,7 +221,6 @@ juljul = updateEquiv $ Trans {
                 ])
         ),
         (4, State 
-                4 
                 (HashMap.fromList [
                     ('c', 1)
                 ])
@@ -249,7 +229,6 @@ juljul = updateEquiv $ Trans {
                 ])
         ),
         (13, State 
-                13 
                 (HashMap.fromList [
                     ('e', 12)
                 ])
@@ -258,7 +237,6 @@ juljul = updateEquiv $ Trans {
                 ])
         ),
         (12, State 
-                12 
                 (HashMap.fromList [
                     ('b', 8)
                 ])
@@ -267,7 +245,6 @@ juljul = updateEquiv $ Trans {
                 ])
         ),
         (11, State 
-                11
                 (HashMap.fromList [
                     ('a', 9)
                 ])
@@ -276,7 +253,6 @@ juljul = updateEquiv $ Trans {
                 ])
         ),
         (9, State 
-                9 
                 (HashMap.fromList [
                     ('n', 1)
                 ])
@@ -285,7 +261,6 @@ juljul = updateEquiv $ Trans {
                 ])
         ),
         (1, State 
-                1 
                 (HashMap.fromList [
                 ])
                 (Just "")
@@ -293,7 +268,6 @@ juljul = updateEquiv $ Trans {
                 ])
         ),
         (8, State 
-                8 
                 (HashMap.fromList [
                 ])
                 (Just "[8|9]")
