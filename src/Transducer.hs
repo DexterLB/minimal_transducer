@@ -15,7 +15,7 @@ import Data.Maybe (fromJust)
 
 -- **** traversing ****
 
--- ^ returns the output of the transducer for a given word
+-- | returns the output of the transducer for a given word
 match :: Trans -> String -> Maybe String
 match t w = makeOutput $ nextO' t (start t) w
     where
@@ -25,7 +25,7 @@ match t w = makeOutput $ nextO' t (start t) w
         finalOutput Nothing _           = Nothing
         finalOutput (Just suffix) sofar = Just $ sofar ++ suffix
 
--- ^ returns the state and output acquired by traversing with the given word
+-- | returns the state and output acquired by traversing with the given word
 nextO' :: Trans -> Int -> String -> Maybe (Int, String)
 nextO' t n w
     | length wordPath /= length w + 1 = Nothing
@@ -36,7 +36,7 @@ nextO' t n w
     where
         wordPath = path t n w
 
--- ^ returns the state acquired by making transitions with the given word
+-- | returns the state acquired by making transitions with the given word
 next' :: Trans -> Int -> String -> Maybe Int
 next' t n w
     | length wordPath == length w + 1   = Just (last wordPath)
@@ -44,7 +44,7 @@ next' t n w
     where
         wordPath = path t n w
 
--- ^ returns the path for traversing with the given word
+-- | returns the path for traversing with the given word
 path :: Trans -> Int -> String -> [Int]
 path _ n ""     = [n]
 path t n (a:w)  = makePath (next t n a)
@@ -52,7 +52,7 @@ path t n (a:w)  = makePath (next t n a)
         makePath Nothing = []
         makePath (Just stateID) = n : (path t stateID w)
 
--- ^ returns the next state and output when performing a transition with the given symbol
+-- | returns the next state and output when performing a transition with the given symbol
 nextO :: Trans -> Int -> Char -> Maybe (Int, String)
 nextO t n a = stateOutput (next t n a) (out t n a)
     where
@@ -60,26 +60,26 @@ nextO t n a = stateOutput (next t n a) (out t n a)
         stateOutput (Just state) Nothing = Just (state, "")
         stateOutput (Just state) (Just output) = Just (state, output)
 
--- ^ same as `out`, but returns empty string when there's no output
+-- | same as `out`, but returns empty string when there's no output
 outEmpty :: Trans -> Int -> Char -> String
 outEmpty t n a = extractOutput $ out t n a
     where
         extractOutput Nothing   = ""
         extractOutput (Just o)  = o
 
--- ^ returns the output when performing a transition with the given symbol
+-- | returns the output when performing a transition with the given symbol
 out :: Trans -> Int -> Char -> Maybe String
 out t n a = HashMap.lookup a (output $ state t n)
 
--- ^ returns the next state when performing a transition with the given symbol
+-- | returns the next state when performing a transition with the given symbol
 next :: Trans -> Int -> Char -> Maybe Int
 next t n a = HashMap.lookup a (transition $ state t n)
 
--- ^ returns the state with the given id
+-- | returns the state with the given id
 state :: Trans -> Int -> State
 state (Trans {states}) n = states HashMap.! n
 
--- ^ updates the equivalence set to reflect the actual state, discarding the old one
+-- | updates the equivalence set to reflect the actual state, discarding the old one
 updateEquiv :: Trans -> Trans
 updateEquiv Trans {states, start} = Trans {
     states = states,

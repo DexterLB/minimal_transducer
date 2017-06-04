@@ -18,11 +18,11 @@ addWord t prevWord word = newT
         rest = drop (length prefix) word 
         prefix = lcp prevWord word
 
--- ^ traverse from the start with the given word, making states as needed
+-- | traverse from the start with the given word, making states as needed
 makePath :: Trans -> String -> (Trans, [Int])
 makePath t w = makePathFrom t (start t) w
 
--- ^ traverse from the given state with the given word, making states as needed
+-- | traverse from the given state with the given word, making states as needed
 makePathFrom :: Trans -> Int -> String -> (Trans, [Int])
 makePathFrom t n "" = (t, [n])
 makePathFrom t n (a:w) = f (next t n a)
@@ -36,10 +36,10 @@ makePathFrom t n (a:w) = f (next t n a)
                 (newT, newPath) = makePathFrom tt m w
                 (tt, m) = addState t n a
 
--- ^ adds a new state after the given state with the given transition
+-- | adds a new state after the given state with the given transition
 addState :: Trans 
-         -> Int             -- % the state from which we make a transition
-         -> Char            -- % with which symbol
+         -> Int             -- ^ the state from which we make a transition
+         -> Char            -- ^ with which symbol
          -> (Trans, Int)
 addState (Trans {start, states, equiv}) prevStateID a 
     = (Trans {start = start', states = states', equiv = equiv'}, newStateID)
@@ -58,7 +58,7 @@ addState (Trans {start, states, equiv}) prevStateID a
 
             newStateID = (HashMap.size states) + 1 -- fixme
 
--- ^ adds a transition in a state table
+-- | adds a transition in a state table
 addTransition :: Int -> Char -> Int -> HashMap Int State -> HashMap Int State
 addTransition from a to states = HashMap.insert from newState states
     where
@@ -69,7 +69,7 @@ addTransition from a to states = HashMap.insert from newState states
 
 -- **** utils ****
 
--- ^ longest common prefix
+-- | longest common prefix
 lcp :: String -> String -> String
 lcp (x:xs) (y:ys)
     | x == y        = x : (lcp xs ys)
