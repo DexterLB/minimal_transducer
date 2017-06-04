@@ -10,11 +10,17 @@ import Data.HashMap.Strict (HashMap)
 
 import Data.Foldable (foldl')
 
+-- | constructs a minimal transducer with the given dictionary.
+-- | Keys must be sorted.
+minimalTransducer :: [(String, String)] -> Trans
+minimalTransducer inp = finalise $ addWords (emptyTrans, "") inp
+
 -- | perform final minimisation of a transducer minimal except for word
 finalise :: (Trans, String) -> Trans
 finalise (t, word) = minimiseWord t word
 
 -- | equivalent to multiple calls of addWordI. Works well with huge lazy lists.
+-- | Keys must be sorted.
 addWords :: (Trans, String) -> [(String, String)] -> (Trans, String)
 addWords = foldl' addWordI
 
