@@ -60,3 +60,127 @@ showFinalLines :: (Show o) => Maybe o -> [String]
 showFinalLines Nothing = []
 showFinalLines (Just output) = ["  final with output " ++ (show output)]
 
+juljul :: Trans
+juljul = Trans {
+    start = 0,
+    states = HashMap.fromList [
+        (0, State 
+                0 
+                (HashMap.fromList [
+                    ('a', 5),
+                    ('d', 6),
+                    ('f', 13),
+                    ('j', 11)
+                ])
+                Nothing
+                (HashMap.fromList [
+                    ('a', "3"),
+                    ('d', "31"),
+                    ('f', "2"),
+                    ('j', "31")
+                ])
+        ),
+        (5, State 
+                5 
+                (HashMap.fromList [
+                    ('p', 2),
+                    ('u', 3)
+                ])
+                Nothing
+                (HashMap.fromList [
+                    ('p', "0"),
+                    ('u', "1")
+                ])
+        ),
+        (2, State 
+                2 
+                (HashMap.fromList [
+                    ('r', 1)
+                ])
+                Nothing
+                (HashMap.fromList [
+                ])
+        ),
+        (3, State 
+                3 
+                (HashMap.fromList [
+                    ('g', 1)
+                ])
+                Nothing
+                (HashMap.fromList [
+                ])
+        ),
+        (6, State 
+                6 
+                (HashMap.fromList [
+                    ('e', 4)
+                ])
+                Nothing
+                (HashMap.fromList [
+                ])
+        ),
+        (4, State 
+                4 
+                (HashMap.fromList [
+                    ('c', 1)
+                ])
+                Nothing
+                (HashMap.fromList [
+                ])
+        ),
+        (13, State 
+                13 
+                (HashMap.fromList [
+                    ('e', 12)
+                ])
+                Nothing
+                (HashMap.fromList [
+                ])
+        ),
+        (12, State 
+                12 
+                (HashMap.fromList [
+                    ('b', 8)
+                ])
+                Nothing
+                (HashMap.fromList [
+                ])
+        ),
+        (1, State 
+                1 
+                (HashMap.fromList [
+                    ('a', 9)
+                ])
+                Nothing
+                (HashMap.fromList [
+                ])
+        ),
+        (9, State 
+                9 
+                (HashMap.fromList [
+                    ('n', 1)
+                ])
+                Nothing
+                (HashMap.fromList [
+                ])
+        ),
+        (1, State 
+                1 
+                (HashMap.fromList [
+                ])
+                (Just "")
+                (HashMap.fromList [
+                ])
+        ),
+        (8, State 
+                8 
+                (HashMap.fromList [
+                ])
+                (Just "[8|9]")
+                (HashMap.fromList [
+                ])
+        )
+    ],
+    equiv = HashSet.fromList []
+}
+
