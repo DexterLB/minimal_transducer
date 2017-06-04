@@ -18,6 +18,9 @@ addWord t prevWord word = newT
         rest = drop (length prefix) word 
         prefix = lcp prevWord word
 
+minimisePath :: Trans -> [(Int, Char, Int)] -> Trans
+minimisePath t = foldr minimiseTransition t
+
 -- | traverse from the start with the given word, making states as needed
 makePath :: Trans -> String -> (Trans, [Int])
 makePath t w = makePathFrom t (start t) w
@@ -41,14 +44,13 @@ addState :: Trans
          -> Int             -- ^ the state from which we make a transition
          -> Char            -- ^ with which symbol
          -> (Trans, Int)
-addState (Trans {start, states, equiv}) prevStateID a 
-    = (Trans {start = start', states = states', equiv = equiv'}, newStateID)
+addState t prevStateID a 
+    = (t', newStateID)
         where
-            start' = start
-
-            states' = addTransition prevStateID a newStateID $ HashMap.insert newStateID newState states
-
-            equiv' = equiv
+            t' = addTransition prevStateID a newStateID $ t {
+                states = HashMap.insert newStateID newState (states t),
+                lastState = newStateID
+            }
 
             newState = State {
                 transition = HashMap.fromList [],
@@ -56,16 +58,39 @@ addState (Trans {start, states, equiv}) prevStateID a
                 output = HashMap.fromList []
             }
 
-            newStateID = (HashMap.size states) + 1 -- fixme
+            newStateID = lastState t + 1
+
+minimiseTransition :: (Int, Char, Int) -> Trans -> Trans
+minimiseTransition (from, a, to) t = checkEquiv toEquiv
+    where
+        checkEquiv Nothing = t  -- state is unique
+        checkEquiv (Just n)
+            | n == to   = undefined   -- state is equivalent to itself - this shouldn't happen
+            | otherwise = (addTransition from a n $ delState to t) {
+                    equiv = HashMap.insert (state t n) n (equiv t)
+                }
+
+        toEquiv = HashMap.lookup ((states t) HashMap.! to) (equiv t)
+
+addTransition :: Int -> Char -> Int -> Trans -> Trans
+addTransition from a to t = t {
+        states = addTransitionState from a to (states t)
+    }
+
 
 -- | adds a transition in a state table
-addTransition :: Int -> Char -> Int -> HashMap Int State -> HashMap Int State
-addTransition from a to states = HashMap.insert from newState states
+addTransitionState :: Int -> Char -> Int -> HashMap Int State -> HashMap Int State
+addTransitionState from a to states = HashMap.insert from newState states
     where
         newState = state {
             transition = HashMap.insert a to (transition state)
         }
         state = states HashMap.! from
+
+delState :: Int -> Trans -> Trans
+delState n t = t {
+        states = HashMap.delete n (states t)
+    }
 
 -- **** utils ****
 

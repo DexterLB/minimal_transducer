@@ -6,9 +6,6 @@ module Transducer where
 import qualified Data.HashMap.Strict as HashMap
 import Data.HashMap.Strict (HashMap)
 
-import qualified Data.HashSet as HashSet
-import Data.HashSet (HashSet)
-
 import Data.Hashable (hashWithSalt, Hashable)
 
 import Data.Maybe (fromJust)
@@ -81,10 +78,11 @@ state (Trans {states}) n = states HashMap.! n
 
 -- | updates the equivalence set to reflect the actual state, discarding the old one
 updateEquiv :: Trans -> Trans
-updateEquiv Trans {states, start} = Trans {
+updateEquiv Trans {states, start, lastState} = Trans {
     states = states,
     start = start,
-    equiv = HashSet.fromList $ HashMap.elems states
+    equiv = HashMap.fromList $ map (\(x, y) -> (y, x)) $  HashMap.toList states,
+    lastState = lastState
 }
 
 -- **** Prints ****
@@ -120,7 +118,9 @@ showVerifyEquivLines t
     | otherwise     = ["  WARN: transducer has wrong equivalence set"]
 
 verifyEquiv :: Trans -> Bool
-verifyEquiv Trans {states, equiv} = (HashSet.fromList (HashMap.elems states)) == equiv
+verifyEquiv Trans {states, equiv} = (
+        HashMap.fromList $ map (\(x, y) -> (y, x)) $ (HashMap.toList states)
+    ) == equiv
 
 showMapLines :: (Show k, Show v) => HashMap k v -> [String]
 showMapLines = (map showPair) . HashMap.toList
@@ -146,8 +146,9 @@ data State = State {
 
 data Trans = Trans {
     states :: HashMap Int State,
-    equiv :: HashSet State,
-    start :: Int
+    equiv :: HashMap State Int,
+    start :: Int,
+    lastState :: Int
 } deriving (Eq)
 
 -- **** Utils ****
@@ -163,7 +164,8 @@ emptyTrans = updateEquiv $ Trans {
     states = HashMap.fromList [
         (1, State (HashMap.empty) Nothing (HashMap.empty))
     ],
-    equiv = HashSet.fromList []
+    equiv = HashMap.fromList [],
+    lastState = 1
 }
 
 -- **** Sandbox ****
@@ -278,6 +280,7 @@ juljul = updateEquiv $ Trans {
                 ])
         )
     ],
-    equiv = HashSet.fromList []
+    equiv = HashMap.fromList [],
+    lastState = 15
 }
 
