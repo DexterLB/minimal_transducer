@@ -130,7 +130,7 @@ setOutput t n a out = updateState t n f
             output = HashMap.insert a out (output state)
         }
 
-
+-- | updates a state both in the state and equivalence tables
 updateState :: Trans -> Int -> (State -> State) -> Trans
 updateState t n f = t {
         states = HashMap.insert n newState (states t),
