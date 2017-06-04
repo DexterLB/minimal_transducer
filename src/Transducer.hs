@@ -85,6 +85,28 @@ updateEquiv Trans {states, start, lastState} = Trans {
     lastState = lastState
 }
 
+-- **** Mutations ****
+
+prependToOutputs :: Trans -> Int -> String -> Trans
+prependToOutputs t n out = updateState t n f
+    where
+        f state = state {
+            output = HashMap.map (out ++) (output state)
+        }
+
+setOutput :: Trans -> Int -> Char -> String -> Trans
+setOutput t n a out = updateState t n f
+    where
+        f state = state {
+            output = HashMap.insert a out (output state)
+        }
+
+
+updateState :: Trans -> Int -> (State -> State) -> Trans
+updateState t n f = t {
+        states = HashMap.adjust f n (states t)
+    }
+
 -- **** Prints ****
 
 instance Show Trans where

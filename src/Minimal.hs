@@ -8,10 +8,11 @@ import Transducer
 import qualified Data.HashMap.Strict as HashMap
 import Data.HashMap.Strict (HashMap)
 
-addWord :: Trans -> String -> String -> Trans
-addWord t prevWord word = newT
+addWord :: Trans -> String -> String -> String -> Trans
+addWord t prevWord word output = outT
     where
-
+        (outT, leftoverOutput) = addOutput newT prefixPath prefix output
+        
         (newT, newPath) = makePath minT word
 
         -- minimise the suffix of the previous word because it diverges
@@ -21,8 +22,26 @@ addWord t prevWord word = newT
         suffix = drop (length prefix) word
         prevSuffixPath = drop (length prefix) (path t (start t) prevWord)
         prevSuffix = drop (length prefix) prevWord
+        prefixPath = path t (start t) prefix
         prefix = lcp prevWord word
 
+addOutput :: Trans -> [Int] -> String -> String -> (Trans, String)
+addOutput t _ "" output = (t, output)
+addOutput t (p:q:path) (a:word) output = addOutput newT (q:path) word suffix
+    where
+        -- move incompatible outputs to the right
+        newT = prependToOutputs tWithOutputPrefix q currentSuffix
+
+        -- output the common prefix at the current transition
+        tWithOutputPrefix = setOutput t p a commonPrefix
+
+        currentSuffix = drop (length commonPrefix) currentOutput
+        suffix = drop (length commonPrefix) output
+        commonPrefix = lcp currentOutput output
+        currentOutput = outEmpty t p a
+
+-- | if the given transducer is minimal except for (pref . word), it now becomes
+-- | minimal except for pref.
 minimisePath :: Trans -> String -> [Int] -> Trans
 minimisePath t word path = minimiseZippedPath t zipped
     where
