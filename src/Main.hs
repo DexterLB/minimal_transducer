@@ -11,9 +11,81 @@ import Data.HashSet (HashSet)
 
 import Data.Hashable (hashWithSalt, Hashable)
 
+import Data.Maybe (fromJust)
+
+import Debug.Trace (traceShowId)
+
 main :: IO ()
 main = putStrLn "Hello, Haskell!"
 
+-- **** traversing ****
+
+
+-- ^ returns the output of the transducer for a given word
+match :: Trans -> String -> Maybe String
+match t w = makeOutput $ nextO' t (start t) w
+    where
+        makeOutput Nothing              = Nothing
+        makeOutput (Just (n, sofar))    = finalOutput (final $ state t n) sofar
+
+        finalOutput Nothing _           = Nothing
+        finalOutput (Just suffix) sofar = Just $ sofar ++ suffix
+
+-- ^ returns the state and output acquired by traversing with the given word
+nextO' :: Trans -> Int -> String -> Maybe (Int, String)
+nextO' t n w
+    | length wordPath /= length w + 1 = Nothing
+    | otherwise = Just (
+            last wordPath,
+            foldr (++) "" $ zipWith (outEmpty t) wordPath w
+        )
+    where
+        wordPath = path t n w
+
+-- ^ returns the state acquired by making transitions with the given word
+next' :: Trans -> Int -> String -> Maybe Int
+next' t n w
+    | length wordPath == length w + 1   = Just (last wordPath)
+    | otherwise                         = Nothing
+    where
+        wordPath = path t n w
+
+-- ^ returns the path for traversing with the given word
+path :: Trans -> Int -> String -> [Int]
+path _ n ""     = [n]
+path t n (a:w)  = makePath (next t n a)
+    where
+        makePath Nothing = []
+        makePath (Just stateID) = n : (path t stateID w)
+
+-- ^ returns the next state and output when performing a transition with the given symbol
+nextO :: Trans -> Int -> Char -> Maybe (Int, String)
+nextO t n a = stateOutput (next t n a) (out t n a)
+    where
+        stateOutput Nothing _ = Nothing
+        stateOutput (Just state) Nothing = Just (state, "")
+        stateOutput (Just state) (Just output) = Just (state, output)
+
+-- ^ same as `out`, but returns empty string when there's no output
+outEmpty :: Trans -> Int -> Char -> String
+outEmpty t n a = extractOutput $ out t n a
+    where
+        extractOutput Nothing   = ""
+        extractOutput (Just o)  = o
+
+-- ^ returns the output when performing a transition with the given symbol
+out :: Trans -> Int -> Char -> Maybe String
+out t n a = HashMap.lookup a (output $ state t n)
+
+-- ^ returns the next state when performing a transition with the given symbol
+next :: Trans -> Int -> Char -> Maybe Int
+next t n a = HashMap.lookup a (transition $ state t n)
+
+-- ^ returns the state with the given id
+state :: Trans -> Int -> State
+state (Trans {states}) n = states HashMap.! n
+
+-- ^ updates the equivalence set to reflect the actual state, discarding the old one
 updateEquiv :: Trans -> Trans
 updateEquiv Trans {states, start} = Trans {
     states = states,
@@ -97,6 +169,16 @@ data Trans = Trans {
     equiv :: HashSet State,
     start :: Int
 } deriving (Eq)
+
+-- **** Utils ****
+
+maybeTuple :: (Maybe a) -> (Maybe b) -> Maybe (a, b)
+maybeTuple Nothing _ = Nothing
+maybeTuple _ Nothing = Nothing
+maybeTuple (Just x) (Just y) = Just (x, y)
+
+-- **** Sandbox ****
+
 
 juljul :: Trans
 juljul = updateEquiv $ Trans {
@@ -184,8 +266,8 @@ juljul = updateEquiv $ Trans {
                 (HashMap.fromList [
                 ])
         ),
-        (1, State 
-                1 
+        (11, State 
+                11
                 (HashMap.fromList [
                     ('a', 9)
                 ])
