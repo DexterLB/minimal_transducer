@@ -88,24 +88,18 @@ updateEquiv Trans {states, start, lastState} = Trans {
 -- **** Mutations ****
 
 addTransition :: Int -> Char -> Int -> Trans -> Trans
-addTransition from a to t = t {
-        states = addTransitionState from a to (states t)
-    }
-
-
--- | adds a transition in a state table
-addTransitionState :: Int -> Char -> Int -> HashMap Int State -> HashMap Int State
-addTransitionState from a to states = HashMap.insert from newState states
+addTransition from a to t = updateState t from f
     where
-        newState = state {
-            transition = HashMap.insert a to (transition state),
-            output = HashMap.insert a "" (output state)
-        }
-        state = states HashMap.! from
+        f state = state {
+                transition = HashMap.insert a to (transition state),
+                output = HashMap.insert a "" (output state)
+            }
+
 
 delState :: Int -> Trans -> Trans
 delState n t = t {
-        states = HashMap.delete n (states t)
+        states = HashMap.delete n (states t),
+        equiv = HashMap.delete ((states t) HashMap.! n) (equiv t)
     }
 
 
@@ -135,8 +129,16 @@ setOutput t n a out = updateState t n f
 
 updateState :: Trans -> Int -> (State -> State) -> Trans
 updateState t n f = t {
-        states = HashMap.adjust f n (states t)
+        states = HashMap.insert n newState (states t),
+        equiv = newEquiv
     }
+    where
+        newState = f oldState
+        oldState = (states t) HashMap.! n
+
+        newEquiv
+            | not (HashMap.member oldState (equiv t)) = (equiv t)
+            | otherwise = HashMap.insert newState n $ HashMap.delete oldState (equiv t)
 
 -- **** Prints ****
 

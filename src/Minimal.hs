@@ -8,7 +8,15 @@ import Transducer
 import qualified Data.HashMap.Strict as HashMap
 import Data.HashMap.Strict (HashMap)
 
+import Data.Foldable (foldl')
 
+-- | perform final minimisation of a transducer minimal except for word
+finalise :: (Trans, String) -> Trans
+finalise (t, word) = minimiseWord t word
+
+-- | equivalent to multiple calls of addWordI. Works well with huge lazy lists.
+addWords :: (Trans, String) -> [(String, String)] -> (Trans, String)
+addWords = foldl' addWordI
 
 -- | the "transformation" version of addWord. The (transducer, lastWord) tuple
 -- | is transformed, adding the new word.
@@ -79,6 +87,10 @@ addOutput t (p:q:path) (a:word) output = addOutput newT (q:path) word suffix
         commonPrefix = lcp currentOutput output
         currentOutput = outEmpty t p a
 
+-- | if the transducer is minimal except for word, it now becomes minimal.
+minimiseWord :: Trans -> String -> Trans
+minimiseWord t w = minimisePath t w (path t (start t) w)
+
 -- | if the given transducer is minimal except for (pref . word), it now becomes
 -- | minimal except for pref.
 minimisePath :: Trans -> String -> [Int] -> Trans
@@ -134,7 +146,9 @@ addState t prevStateID a
 minimiseTransition :: (Int, Char, Int) -> Trans -> Trans
 minimiseTransition (from, a, to) t = checkEquiv toEquiv
     where
-        checkEquiv Nothing = t  -- state is unique
+        checkEquiv Nothing = t {  -- state is unique, add it to the equivalence table
+                equiv = HashMap.insert (state t to) to (equiv t)
+            }
         checkEquiv (Just n)
             | n == to   = undefined   -- state is equivalent to itself - this shouldn't happen
             | otherwise = (addTransition from a n $ delState to t) {
