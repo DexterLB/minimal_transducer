@@ -87,11 +87,42 @@ updateEquiv Trans {states, start, lastState} = Trans {
 
 -- **** Mutations ****
 
+addTransition :: Int -> Char -> Int -> Trans -> Trans
+addTransition from a to t = t {
+        states = addTransitionState from a to (states t)
+    }
+
+
+-- | adds a transition in a state table
+addTransitionState :: Int -> Char -> Int -> HashMap Int State -> HashMap Int State
+addTransitionState from a to states = HashMap.insert from newState states
+    where
+        newState = state {
+            transition = HashMap.insert a to (transition state),
+            output = HashMap.insert a "" (output state)
+        }
+        state = states HashMap.! from
+
+delState :: Int -> Trans -> Trans
+delState n t = t {
+        states = HashMap.delete n (states t)
+    }
+
+
 prependToOutputs :: Trans -> Int -> String -> Trans
 prependToOutputs t n out = updateState t n f
     where
         f state = state {
-            output = HashMap.map (out ++) (output state)
+            output = HashMap.map (out ++) (output state),
+            final = (out ++) <$> (final state)
+        }
+
+
+setFinal :: Trans -> Int -> String -> Trans
+setFinal t n out = updateState t n f
+    where
+        f state = state {
+            final = Just out
         }
 
 setOutput :: Trans -> Int -> Char -> String -> Trans
