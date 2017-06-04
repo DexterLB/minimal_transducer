@@ -11,15 +11,25 @@ import Data.HashMap.Strict (HashMap)
 addWord :: Trans -> String -> String -> Trans
 addWord t prevWord word = newT
     where
-        -- first minimise the prevword suffix
-        --
 
-        (newT, path) = makePath t word
-        rest = drop (length prefix) word 
+        (newT, newPath) = makePath minT word
+
+        -- minimise the suffix of the previous word because it diverges
+        -- with the current word
+        minT = minimisePath t prevSuffix prevSuffixPath
+
+        suffix = drop (length prefix) word
+        prevSuffixPath = drop (length prefix) (path t (start t) prevWord)
+        prevSuffix = drop (length prefix) prevWord
         prefix = lcp prevWord word
 
-minimisePath :: Trans -> [(Int, Char, Int)] -> Trans
-minimisePath t = foldr minimiseTransition t
+minimisePath :: Trans -> String -> [Int] -> Trans
+minimisePath t word path = minimiseZippedPath t zipped
+    where
+        zipped = zipWith (\(x, y) z -> (x, y, z)) (zip path word) (tail path)
+
+minimiseZippedPath :: Trans -> [(Int, Char, Int)] -> Trans
+minimiseZippedPath t = foldr minimiseTransition t
 
 -- | traverse from the start with the given word, making states as needed
 makePath :: Trans -> String -> (Trans, [Int])
