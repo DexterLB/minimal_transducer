@@ -157,9 +157,11 @@ minimiseTransition (from, a, to) t = checkEquiv toEquiv
             }
         checkEquiv (Just n)
             | n == to   = undefined   -- state is equivalent to itself - this shouldn't happen
-            | otherwise = (addTransition from a n $ delState to t) {
-                    equiv = HashMap.insert (state t n) n (equiv t)
+            | otherwise = t' {
+                    equiv = HashMap.insert (state t n) n (equiv t')
                 }
+            where
+                t' = (addTransition from a n $ delState to t)
 
         toEquiv = HashMap.lookup ((states t) HashMap.! to) (equiv t)
 

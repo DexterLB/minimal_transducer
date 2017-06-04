@@ -92,9 +92,13 @@ addTransition from a to t = updateState t from f
     where
         f state = state {
                 transition = HashMap.insert a to (transition state),
-                output = HashMap.insert a "" (output state)
+                output = bump a "" (output state)
             }
 
+bump :: (Eq k, Hashable k) => k -> v -> HashMap k v -> HashMap k v
+bump key newValue m
+    | HashMap.member key m  = m
+    | otherwise             = HashMap.insert key newValue m
 
 delState :: Int -> Trans -> Trans
 delState n t = t {
