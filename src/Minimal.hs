@@ -39,7 +39,9 @@ addWord :: Trans
         -> String   -- ^ word to add (must be lexicographically > than previous)
         -> String   -- ^ output for the added word
         -> Trans
-addWord t prevWord word output = finalT
+addWord t prevWord word output
+    | length suffix /= 0 = finalT
+    | otherwise = error $ "words " ++ prevWord ++ " and " ++ word ++ " are out of order"
     where
         -- set the remaining output to the first transition that's only part
         -- of the new word (e.g. the first element of the suffix)
@@ -156,7 +158,7 @@ minimiseTransition (from, a, to) t = checkEquiv toEquiv
                 equiv = HashMap.insert (state t to) to (equiv t)
             }
         checkEquiv (Just n)
-            | n == to   = undefined   -- state is equivalent to itself - this shouldn't happen
+            | n == to   = t   -- state is already part of the minimal path
             | otherwise = t' {
                     equiv = HashMap.insert (state t n) n (equiv t')
                 }
