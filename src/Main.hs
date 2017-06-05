@@ -9,6 +9,8 @@ import Minimal
 import Data.Char (isSpace)
 import System.Environment (getArgs)
 
+-- | read a dictionary file (the first argument), and then read words from
+-- | stdin and print their outputs to stdout
 main :: IO ()
 main = do
     args <- getArgs
