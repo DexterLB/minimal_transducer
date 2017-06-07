@@ -193,7 +193,10 @@ showFinalLines (Just output) = ["  final with output " ++ (show output)]
 
 instance Hashable State where
     hashWithSalt salt State {transition, final, output}
-        = hashWithSalt salt (transition, final, output)
+        -- it appears that most of the time it's faster to hash only the size
+        -- of the output and whether the state is final, and manually compare
+        -- the remaining states for equivalence
+        = hashWithSalt salt (transition, (final == Nothing), HashMap.size output)
 
 -- **** Data ****
 
