@@ -139,10 +139,12 @@ setOutput t n a out = updateState t n f
 
 -- | updates a state both in the state and equivalence tables
 updateState :: Trans -> Int -> (State -> State) -> Trans
-updateState t n f = t {
-        states = HashMap.insert n newState (states t),
-        equiv = newEquiv
-    }
+updateState t n f 
+    | oldState == newState  = t
+    | otherwise             = t {
+            states = HashMap.insert n newState (states t),
+            equiv = newEquiv
+        }
     where
         newState = f oldState
         oldState = (states t) HashMap.! n
@@ -203,7 +205,7 @@ instance Hashable State where
         -- it appears that most of the time it's faster to hash only the size
         -- of the output and whether the state is final, and manually compare
         -- the remaining states for equivalence
-        = hashWithSalt salt (transition, (final == Nothing), HashMap.size output)
+        = hashWithSalt salt (transition, T.length <$> final, HashMap.size output)
 
 -- **** Data ****
 
