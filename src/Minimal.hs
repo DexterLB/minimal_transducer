@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
 module Minimal where
@@ -10,47 +11,55 @@ import Data.HashMap.Strict (HashMap)
 
 import Data.Foldable (foldl')
 
+import Data.Text (Text)
+import qualified Data.Text as T
+
 -- | constructs a minimal transducer with the given dictionary.
 -- | Keys must be sorted.
-minimalTransducer :: [(String, String)] -> Trans
+minimalTransducer :: [(Text, Text)] -> Trans
 minimalTransducer inp = finalise $ addWords (emptyTrans, "") inp
 
 -- | perform final minimisation of a transducer minimal except for word
-finalise :: (Trans, String) -> Trans
+finalise :: (Trans, Text) -> Trans
 finalise (t, word) = minimiseWord t word
 
 -- | equivalent to multiple calls of addWordI. Works well with huge lazy lists.
 -- | Keys must be sorted.
-addWords :: (Trans, String) -> [(String, String)] -> (Trans, String)
+addWords :: (Trans, Text) -> [(Text, Text)] -> (Trans, Text)
 addWords = foldl' addWordI
 
 -- | the "transformation" version of addWord. The (transducer, lastWord) tuple
 -- | is transformed, adding the new word.
-addWordI :: (Trans, String)     -- ^ transducer, lastWord
-         -> (String, String)    -- ^ newWord, output
-         -> (Trans, String)     -- ^ newTransducer, newWord
+addWordI :: (Trans, Text)     -- ^ transducer, lastWord
+         -> (Text, Text)    -- ^ newWord, output
+         -> (Trans, Text)     -- ^ newTransducer, newWord
 addWordI (t, prevWord) (newWord, output)
     = (addWord t prevWord newWord output, newWord)
 
 -- | add a word to the transducer. It must be minimal except for the previous word,
 -- | and after this operation will be minimal except for the new word.
 addWord :: Trans
-        -> String   -- ^ previous word
-        -> String   -- ^ word to add (must be lexicographically > than previous)
-        -> String   -- ^ output for the added word
+        -> Text   -- ^ previous word
+        -> Text   -- ^ word to add (must be lexicographically > than previous)
+        -> Text   -- ^ output for the added word
         -> Trans
 addWord t prevWord word output
-    | length suffix /= 0 = finalT
-    | otherwise = error $ "words " ++ prevWord ++ " and " ++ word ++ " are out of order"
+    | T.length suffix /= 0 = finalT
+    | otherwise = error $ 
+                          "words " 
+                          ++ (T.unpack prevWord) 
+                          ++ " and " 
+                          ++ (T.unpack word)
+                          ++ " are out of order"
     where
         -- set the remaining output to the first transition that's only part
         -- of the new word (e.g. the first element of the suffix)
-        finalT = setOutput tWithOut (head suffixPath) (head suffix) leftoverOutput
+        finalT = setOutput tWithOut (head suffixPath) (T.head suffix) leftoverOutput
 
         -- set any outputs we have in common with parts of the prefix
         (tWithOut, leftoverOutput) = addOutput newT prefixPath prefix output
        
-        suffixPath = drop (length prefix) newPath
+        suffixPath = drop (T.length prefix) newPath
 
         -- set the last state of the current word's path to final (with no output)
         newT = setFinal tWithNewStates (last newPath) ""
@@ -64,25 +73,25 @@ addWord t prevWord word output
 
         -- the "suffix" is the part of the new word that has no common
         -- prefix with any previous word
-        suffix = drop (length prefix) word
+        suffix = T.drop (T.length prefix) word
 
         -- the "prev suffix" is the suffix of the previous word which diverges
         -- from the new word. It will be minimised and forgotten about.
-        prevSuffixPath = drop (length prefix) (path t (start t) prevWord)
-        prevSuffix = drop (length prefix) prevWord
+        prevSuffixPath  =   drop (T.length prefix) (path t (start t) prevWord)
+        prevSuffix      = T.drop (T.length prefix) prevWord
 
         -- the "prefix" is the common prefix of the current and previous words
-        prefixPath = path t (start t) prefix
-        prefix = lcp prevWord word
+        prefixPath  = path t (start t) prefix
+        prefix      = lcp prevWord word
 
 -- | attach the given output to the word with the given path
 addOutput :: Trans
           -> [Int]              -- ^ path
-          -> String             -- ^ word (must be compatible with the path)
-          -> String             -- ^ output
-          -> (Trans, String)    -- ^ new transducer and the leftover output
+          -> Text             -- ^ word (must be compatible with the path)
+          -> Text             -- ^ output
+          -> (Trans, Text)    -- ^ new transducer and the leftover output
 addOutput t _ "" output = (t, output)
-addOutput t (p:q:path) (a:word) output = addOutput newT (q:path) word suffix
+addOutput t (p:q:path) word output = addOutput newT (q:path) w suffix
     where
         -- move incompatible outputs to the right
         newT = prependToOutputs tWithOutputPrefix q currentSuffix
@@ -90,33 +99,36 @@ addOutput t (p:q:path) (a:word) output = addOutput newT (q:path) word suffix
         -- output the common prefix at the current transition
         tWithOutputPrefix = setOutput t p a commonPrefix
 
-        currentSuffix = drop (length commonPrefix) currentOutput
-        suffix = drop (length commonPrefix) output
-        commonPrefix = lcp currentOutput output
-        currentOutput = outEmpty t p a
+        currentSuffix   = T.drop (T.length commonPrefix) currentOutput
+        suffix          = T.drop (T.length commonPrefix) output
+        commonPrefix    = lcp currentOutput output
+        currentOutput   = outEmpty t p a
+
+        a = T.head word
+        w = T.tail word
 
 -- | if the transducer is minimal except for word, it now becomes minimal.
-minimiseWord :: Trans -> String -> Trans
+minimiseWord :: Trans -> Text -> Trans
 minimiseWord t w = minimisePath t w (path t (start t) w)
 
 -- | if the given transducer is minimal except for (pref . word), it now becomes
 -- | minimal except for pref.
-minimisePath :: Trans -> String -> [Int] -> Trans
+minimisePath :: Trans -> Text -> [Int] -> Trans
 minimisePath t word path = minimiseZippedPath t zipped
     where
-        zipped = zipWith (\(x, y) z -> (x, y, z)) (zip path word) (tail path)
+        zipped = zipWith (\(x, y) z -> (x, y, z)) (zip path (T.unpack word)) (tail path)
 
 minimiseZippedPath :: Trans -> [(Int, Char, Int)] -> Trans
 minimiseZippedPath t = foldr minimiseTransition t
 
 -- | traverse from the start with the given word, making states as needed
-makePath :: Trans -> String -> (Trans, [Int])
+makePath :: Trans -> Text -> (Trans, [Int])
 makePath t w = makePathFrom t (start t) w
 
 -- | traverse from the given state with the given word, making states as needed
-makePathFrom :: Trans -> Int -> String -> (Trans, [Int])
+makePathFrom :: Trans -> Int -> Text -> (Trans, [Int])
 makePathFrom t n "" = (t, [n])
-makePathFrom t n (a:w) = f (next t n a)
+makePathFrom t n word = f (next t n a)
     where   -- todo: use tail recursion here
         f :: Maybe Int -> (Trans, [Int])
         f (Just m) = (newT, n : newPath)
@@ -126,6 +138,9 @@ makePathFrom t n (a:w) = f (next t n a)
             where
                 (newT, newPath) = makePathFrom tt m w
                 (tt, m) = addState t n a
+
+        a = T.head word
+        w = T.tail word
 
 -- | adds a new state after the given state with the given transition
 addState :: Trans 
@@ -170,8 +185,12 @@ minimiseTransition (from, a, to) t = checkEquiv toEquiv
 -- **** utils ****
 
 -- | longest common prefix
-lcp :: String -> String -> String
-lcp (x:xs) (y:ys)
-    | x == y        = x : (lcp xs ys)
+lcp :: Text -> Text -> Text
+lcp a b = T.pack $ lcp' (T.unpack a) (T.unpack b)
+
+-- | longest common prefix
+lcp' :: String -> String -> String
+lcp' (x:xs) (y:ys)
+    | x == y        = x : (lcp' xs ys)
     | otherwise     = ""
-lcp _ _             = ""
+lcp' _ _             = ""

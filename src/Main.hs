@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
 module Main where
@@ -8,6 +9,9 @@ import Minimal
 
 import Data.Char (isSpace)
 import System.Environment (getArgs)
+
+import Data.Text (Text)
+import qualified Data.Text as T
 
 -- | read a dictionary file (the first argument), and then read words from
 -- | stdin and print their outputs to stdout
@@ -27,23 +31,23 @@ prompt t =
     (map (linePrompt t)) . lines
 
 linePrompt :: Trans -> String -> String
-linePrompt t = (" -> " ++) . deMaybe . (match t)
+linePrompt t = (" -> " ++) . T.unpack . deMaybe . (match t) . T.pack
 
-readDic :: String -> IO [(String, String)]
+readDic :: String -> IO [(Text, Text)]
 readDic filename = parseDic <$> (readFile filename)
 
-parseDic :: String -> [(String, String)]
-parseDic = splitLines . lines
+parseDic :: String -> [(Text, Text)]
+parseDic = splitLines . (map T.pack) . lines
 
-splitLines :: [String] -> [(String, String)]
+splitLines :: [Text] -> [(Text, Text)]
 splitLines = map splitLine
 
-splitLine :: String -> (String, String)
+splitLine :: Text -> (Text, Text)
 splitLine s = (
-                 takeWhile (not . isSpace) s, 
-        drop 1 $ dropWhile (not . isSpace) s
+                   T.takeWhile (not . isSpace) s, 
+        T.drop 1 $ T.dropWhile (not . isSpace) s
     )
 
-deMaybe :: Maybe String -> String
-deMaybe Nothing = "¯\\_(ツ)_/¯"
+deMaybe :: Maybe Text -> Text
+deMaybe Nothing = T.pack "¯\\_(ツ)_/¯"
 deMaybe (Just s) = s

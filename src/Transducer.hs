@@ -1,5 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Transducer where
 
@@ -10,47 +11,53 @@ import Data.Hashable (hashWithSalt, Hashable)
 
 import Data.Maybe (fromJust)
 
+import Data.Text (Text)
+import qualified Data.Text as T
+
 -- **** traversing ****
 
 -- | returns the output of the transducer for a given word
-match :: Trans -> String -> Maybe String
+match :: Trans -> Text -> Maybe Text
 match t w = makeOutput $ nextO' t (start t) w
     where
         makeOutput Nothing              = Nothing
         makeOutput (Just (n, sofar))    = finalOutput (final $ state t n) sofar
 
         finalOutput Nothing _           = Nothing
-        finalOutput (Just suffix) sofar = Just $ sofar ++ suffix
+        finalOutput (Just suffix) sofar = Just $ sofar `T.append` suffix
 
 -- | returns the state and output acquired by traversing with the given word
-nextO' :: Trans -> Int -> String -> Maybe (Int, String)
+nextO' :: Trans -> Int -> Text -> Maybe (Int, Text)
 nextO' t n w
-    | length wordPath /= length w + 1 = Nothing
+    | length wordPath /= T.length w + 1 = Nothing
     | otherwise = Just (
             last wordPath,
-            foldr (++) "" $ zipWith (outEmpty t) wordPath w
+            T.concat $ zipWith (outEmpty t) wordPath (T.unpack w)
         )
     where
         wordPath = path t n w
 
 -- | returns the state acquired by making transitions with the given word
-next' :: Trans -> Int -> String -> Maybe Int
+next' :: Trans -> Int -> Text -> Maybe Int
 next' t n w
-    | length wordPath == length w + 1   = Just (last wordPath)
+    | length wordPath == T.length w + 1   = Just (last wordPath)
     | otherwise                         = Nothing
     where
         wordPath = path t n w
 
 -- | returns the path for traversing with the given word
-path :: Trans -> Int -> String -> [Int]
+path :: Trans -> Int -> Text -> [Int]
 path _ n ""     = [n]
-path t n (a:w)  = makePath (next t n a)
+path t n word  = makePath (next t n a)
     where
         makePath Nothing = []
         makePath (Just stateID) = n : (path t stateID w)
 
+        w = T.tail word
+        a = T.head word
+
 -- | returns the next state and output when performing a transition with the given symbol
-nextO :: Trans -> Int -> Char -> Maybe (Int, String)
+nextO :: Trans -> Int -> Char -> Maybe (Int, Text)
 nextO t n a = stateOutput (next t n a) (out t n a)
     where
         stateOutput Nothing _ = Nothing
@@ -58,14 +65,14 @@ nextO t n a = stateOutput (next t n a) (out t n a)
         stateOutput (Just state) (Just output) = Just (state, output)
 
 -- | same as `out`, but returns empty string when there's no output
-outEmpty :: Trans -> Int -> Char -> String
+outEmpty :: Trans -> Int -> Char -> Text
 outEmpty t n a = extractOutput $ out t n a
     where
         extractOutput Nothing   = ""
         extractOutput (Just o)  = o
 
 -- | returns the output when performing a transition with the given symbol
-out :: Trans -> Int -> Char -> Maybe String
+out :: Trans -> Int -> Char -> Maybe Text
 out t n a = HashMap.lookup a (output $ state t n)
 
 -- | returns the next state when performing a transition with the given symbol
@@ -107,23 +114,23 @@ delState n t = t {
     }
 
 
-prependToOutputs :: Trans -> Int -> String -> Trans
+prependToOutputs :: Trans -> Int -> Text -> Trans
 prependToOutputs t n out = updateState t n f
     where
         f state = state {
-            output = HashMap.map (out ++) (output state),
-            final = (out ++) <$> (final state)
+            output = HashMap.map (out `T.append`) (output state),
+            final = (out `T.append`) <$> (final state)
         }
 
 
-setFinal :: Trans -> Int -> String -> Trans
+setFinal :: Trans -> Int -> Text -> Trans
 setFinal t n out = updateState t n f
     where
         f state = state {
             final = Just out
         }
 
-setOutput :: Trans -> Int -> Char -> String -> Trans
+setOutput :: Trans -> Int -> Char -> Text -> Trans
 setOutput t n a out = updateState t n f
     where
         f state = state {
@@ -202,8 +209,8 @@ instance Hashable State where
 
 data State = State {
     transition :: HashMap Char Int,
-    final :: Maybe String,
-    output :: HashMap Char String
+    final :: Maybe Text,
+    output :: HashMap Char Text
 } deriving (Eq)
 
 data Trans = Trans {
