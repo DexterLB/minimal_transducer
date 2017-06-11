@@ -205,7 +205,14 @@ instance Hashable State where
         -- it appears that most of the time it's faster to hash only the size
         -- of the output and whether the state is final, and manually compare
         -- the remaining states for equivalence
-        = hashWithSalt salt (transition, T.length <$> final, HashMap.size output)
+        --
+        -- sometimes, on a particular worst-case input, the other option works
+        -- better.
+
+
+        -- = hashWithSalt salt (transition, T.length <$> final, HashMap.size output)
+        = hashWithSalt salt (transition, final, output)
+    
 
 -- **** Data ****
 
