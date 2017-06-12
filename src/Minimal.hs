@@ -1,6 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Minimal where
 
@@ -33,7 +34,7 @@ addWords = foldl' addWordI
 addWordI :: (Trans, Text)       -- ^ transducer, lastWord
          -> (Text, Text)        -- ^ newWord, output
          -> (Trans, Text)       -- ^ newTransducer, newWord
-addWordI (t, prevWord) (newWord, output)
+addWordI (!t, !prevWord) (!newWord, !output)
     = (addWord t prevWord newWord output, newWord)
 
 -- | add a word to the transducer. It must be minimal except for the previous word,
@@ -145,10 +146,10 @@ addState :: Trans
          -> Int             -- ^ the state from which we make a transition
          -> Char            -- ^ with which symbol
          -> (Trans, Int)
-addState t prevStateID a 
+addState !t prevStateID a 
     = (t', newStateID)
         where
-            t' = addTransition prevStateID a newStateID $ t {
+            !t' = addTransition prevStateID a newStateID $ t {
                 states = HashMap.insert newStateID newState (states t),
                 lastState = newStateID
             }
@@ -159,13 +160,13 @@ addState t prevStateID a
                 output = HashMap.fromList []
             }
 
-            newStateID = lastState t + 1
+            !newStateID = lastState t + 1
 
 -- | checks if there's a state which is equivalent to the target state.
 -- | If there is, the target state is deleted and the transition is pointed
 -- | at its equivalent state
 minimiseTransition :: (Int, Char, Int) -> Trans -> Trans
-minimiseTransition (from, a, to) t = checkEquiv toEquiv
+minimiseTransition (from, a, to) !t = checkEquiv toEquiv
     where
         checkEquiv Nothing = t {  -- state is unique, add it to the equivalence table
                 equiv = HashMap.insert (state t to) to (equiv t)
@@ -176,9 +177,9 @@ minimiseTransition (from, a, to) t = checkEquiv toEquiv
                     equiv = HashMap.insert (state t n) n (equiv t')
                 }
             where
-                t' = (addTransition from a n $ delState to t)
+                !t' = (addTransition from a n $ delState to t)
 
-        toEquiv = HashMap.lookup ((states t) HashMap.! to) (equiv t)
+        !toEquiv = HashMap.lookup ((states t) HashMap.! to) (equiv t)
 
 -- **** utils ****
 

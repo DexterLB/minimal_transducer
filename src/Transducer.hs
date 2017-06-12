@@ -1,6 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Transducer where
 
@@ -95,9 +96,9 @@ updateEquiv Trans {states, start, lastState} = Trans {
 -- **** Mutations ****
 
 addTransition :: Int -> Char -> Int -> Trans -> Trans
-addTransition from a to t = updateState t from f
+addTransition from a to !t = updateState t from f
     where
-        f state = state {
+        f !state = state {
                 transition = HashMap.insert a to (transition state),
                 output = bump a "" (output state)
             }
@@ -139,15 +140,15 @@ setOutput t n a out = updateState t n f
 
 -- | updates a state both in the state and equivalence tables
 updateState :: Trans -> Int -> (State -> State) -> Trans
-updateState t n f 
+updateState !t n f 
     | oldState == newState  = t
     | otherwise             = t {
             states = HashMap.insert n newState (states t),
             equiv = newEquiv
         }
     where
-        newState = f oldState
-        oldState = (states t) HashMap.! n
+        !newState = f oldState
+        !oldState = (states t) HashMap.! n
 
         newEquiv
             | not (HashMap.member oldState (equiv t)) = (equiv t)
