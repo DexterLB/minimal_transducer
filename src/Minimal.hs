@@ -71,22 +71,21 @@ addWord t prevWord word output
         -- with the current word
         minT = minimisePath t prevSuffix prevSuffixPath
 
+
+        -- the "prefix" is the common prefix of the current and previous words
+        
         -- the "suffix" is the part of the new word that has no common
         -- prefix with any previous word
-        suffix = T.drop (T.length prefix) word
-
+        --
         -- the "prev suffix" is the suffix of the previous word which diverges
         -- from the new word. It will be minimised and forgotten about.
         prevSuffixPath  =   drop (T.length prefix) (path t (start t) prevWord)
-        prevSuffix      = T.drop (T.length prefix) prevWord
-
-        -- the "prefix" is the common prefix of the current and previous words
-        prefixPath  = path t (start t) prefix
-        prefix      = lcp prevWord word
+        prefixPath                      = path t (start t) prefix
+        (prefix, prevSuffix, suffix)    = lcprefixes prevWord word
 
 -- | attach the given output to the word with the given path
 addOutput :: Trans
-          -> [Int]              -- ^ path
+          -> [Int]            -- ^ path
           -> Text             -- ^ word (must be compatible with the path)
           -> Text             -- ^ output
           -> (Trans, Text)    -- ^ new transducer and the leftover output
@@ -99,9 +98,8 @@ addOutput t (p:q:path) word output = addOutput newT (q:path) w suffix
         -- output the common prefix at the current transition
         tWithOutputPrefix = setOutput t p a commonPrefix
 
-        currentSuffix   = T.drop (T.length commonPrefix) currentOutput
-        suffix          = T.drop (T.length commonPrefix) output
-        commonPrefix    = lcp currentOutput output
+        (commonPrefix, currentSuffix, suffix) = lcprefixes currentOutput output
+        
         currentOutput   = outEmpty t p a
 
         a = T.head word
@@ -186,11 +184,12 @@ minimiseTransition (from, a, to) t = checkEquiv toEquiv
 
 -- | longest common prefix
 lcp :: Text -> Text -> Text
-lcp a b = T.pack $ lcp' (T.unpack a) (T.unpack b)
+lcp a b = fst3 (lcprefixes a b)
 
--- | longest common prefix
-lcp' :: String -> String -> String
-lcp' (x:xs) (y:ys)
-    | x == y        = x : (lcp' xs ys)
-    | otherwise     = ""
-lcp' _ _             = ""
+lcprefixes :: Text -> Text -> (Text, Text, Text)
+lcprefixes a b = couldBeEmpty (T.commonPrefixes a b)
+    where
+        couldBeEmpty Nothing            = (T.empty, a, b)
+        couldBeEmpty (Just prefixes)    = prefixes
+
+fst3 (a, _, _) = a
