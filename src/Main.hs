@@ -28,7 +28,7 @@ main = do
     t <- runResourceT $
               (Co.sourceFile  (args !! 0) )
             $$ Co.decodeUtf8
-            .| Co.peekForeverE Co.linesUnbounded
+            .| Co.linesUnbounded
             .| Co.map splitLine
             .| Co.foldl addWordI (emptyTrans, (T.pack ""))
 
