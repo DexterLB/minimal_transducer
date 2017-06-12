@@ -30,9 +30,9 @@ addWords = foldl' addWordI
 
 -- | the "transformation" version of addWord. The (transducer, lastWord) tuple
 -- | is transformed, adding the new word.
-addWordI :: (Trans, Text)     -- ^ transducer, lastWord
-         -> (Text, Text)    -- ^ newWord, output
-         -> (Trans, Text)     -- ^ newTransducer, newWord
+addWordI :: (Trans, Text)       -- ^ transducer, lastWord
+         -> (Text, Text)        -- ^ newWord, output
+         -> (Trans, Text)       -- ^ newTransducer, newWord
 addWordI (t, prevWord) (newWord, output)
     = (addWord t prevWord newWord output, newWord)
 

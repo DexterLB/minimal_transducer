@@ -10,6 +10,12 @@ import Minimal
 import Data.Char (isSpace)
 import System.Environment (getArgs)
 
+
+import Data.Conduit (runConduit, (.|) , ($$) )
+import Control.Monad.Trans.Resource (runResourceT)
+import qualified Data.Conduit as C
+import qualified Data.Conduit.Combinators as Co
+
 import Data.Text (Text)
 import qualified Data.Text as T
 
@@ -18,11 +24,17 @@ import qualified Data.Text as T
 main :: IO ()
 main = do
     args <- getArgs
-    dic <- readDic $ args !! 0
-    
-    let t = minimalTransducer dic
 
-    interact $ prompt t
+    t <- runResourceT $
+              (Co.sourceFile  (args !! 0) )
+            $$ Co.decodeUtf8
+            .| Co.peekForeverE Co.linesUnbounded
+            .| Co.map splitLine
+            .| Co.foldl addWordI (emptyTrans, (T.pack ""))
+
+    let minimalT = finalise t
+
+    interact $ prompt minimalT
 
 prompt :: Trans -> String -> String
 prompt t = 
