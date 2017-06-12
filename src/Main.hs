@@ -45,15 +45,6 @@ prompt t =
 linePrompt :: Trans -> String -> String
 linePrompt t = (" -> " ++) . T.unpack . deMaybe . (match t) . T.pack
 
-readDic :: String -> IO [(Text, Text)]
-readDic filename = parseDic <$> (readFile filename)
-
-parseDic :: String -> [(Text, Text)]
-parseDic = splitLines . (map T.pack) . lines
-
-splitLines :: [Text] -> [(Text, Text)]
-splitLines = map splitLine
-
 splitLine :: Text -> (Text, Text)
 splitLine s = (
                    T.takeWhile (not . isSpace) s, 
