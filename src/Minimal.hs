@@ -1,6 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Minimal where
 
@@ -33,7 +34,7 @@ addWords = foldl' addWordI
 addWordI :: (Trans, Text)       -- ^ transducer, lastWord
          -> (Text, Text)        -- ^ newWord, output
          -> (Trans, Text)       -- ^ newTransducer, newWord
-addWordI (t, prevWord) (newWord, output)
+addWordI (!t, !prevWord) (!newWord, !output)
     = (addWord t prevWord newWord output, newWord)
 
 -- | add a word to the transducer. It must be minimal except for the previous word,
