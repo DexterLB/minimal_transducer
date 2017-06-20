@@ -137,21 +137,20 @@ setOutput t n a out = updateState t n f
             output = HashMap.insert a out (output state)
         }
 
--- | updates a state both in the state and equivalence tables
+-- | updates a state both in the state table
 updateState :: Trans -> Int -> (State -> State) -> Trans
 updateState t n f 
     | oldState == newState  = t
     | otherwise             = t {
-            states = HashMap.insert n newState (states t),
-            equiv = newEquiv
+            states = HashMap.insert n newState (states t)
         }
+
+    -- equiv doesn't need updating because updateState is only called
+    -- before inserting a state in equiv
+
     where
         newState = f oldState
         oldState = (states t) HashMap.! n
-
-        newEquiv
-            | not (HashMap.member oldState (equiv t)) = (equiv t)
-            | otherwise = HashMap.insert newState n $ HashMap.delete oldState (equiv t)
 
 -- **** Prints ****
 
