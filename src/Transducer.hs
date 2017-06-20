@@ -237,7 +237,7 @@ maybeTuple _ Nothing = Nothing
 maybeTuple (Just x) (Just y) = Just (x, y)
 
 emptyTrans :: Trans
-emptyTrans = updateEquiv $ Trans {
+emptyTrans = Trans {
     start = 1,
     states = HashMap.fromList [
         (1, State (HashMap.empty) Nothing (HashMap.empty))
