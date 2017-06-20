@@ -40,8 +40,8 @@ nextO' t n w
 -- | returns the state acquired by making transitions with the given word
 next' :: Trans -> Int -> Text -> Maybe Int
 next' t n w
-    | length wordPath == T.length w + 1   = Just (last wordPath)
-    | otherwise                         = Nothing
+    | length wordPath == T.length w + 1     = Just (last wordPath)
+    | otherwise                             = Nothing
     where
         wordPath = path t n w
 
