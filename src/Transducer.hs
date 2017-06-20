@@ -139,18 +139,12 @@ setOutput t n a out = updateState t n f
 
 -- | updates a state both in the state table
 updateState :: Trans -> Int -> (State -> State) -> Trans
-updateState t n f 
-    | oldState == newState  = t
-    | otherwise             = t {
-            states = HashMap.insert n newState (states t)
+updateState t n f = t {
+            states = HashMap.adjust f n (states t)
         }
-
     -- equiv doesn't need updating because updateState is only called
     -- before inserting a state in equiv
 
-    where
-        newState = f oldState
-        oldState = (states t) HashMap.! n
 
 -- **** Prints ****
 
