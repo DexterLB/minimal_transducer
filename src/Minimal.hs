@@ -14,6 +14,7 @@ import Data.Foldable (foldl')
 
 import Data.Text (Text)
 import qualified Data.Text as T
+import Debug.Trace (trace)
 
 -- | constructs a minimal transducer with the given dictionary.
 -- | Keys must be sorted.

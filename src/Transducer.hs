@@ -14,6 +14,8 @@ import Data.Maybe (fromJust)
 import Data.Text (Text)
 import qualified Data.Text as T
 
+import Debug.Trace (trace)
+
 -- **** traversing ****
 
 -- | returns the output of the transducer for a given word
@@ -137,6 +139,8 @@ setOutput t n a out = updateState t n f
             output = HashMap.insert a out (output state)
         }
 
+{- this code exists only to prove that I'm an utter moron. It makes no sense.
+ - (it is also useful for debugging)
 -- | updates a state both in the state and equivalence tables
 updateState :: Trans -> Int -> (State -> State) -> Trans
 updateState t n f 
@@ -151,7 +155,20 @@ updateState t n f
 
         newEquiv
             | not (HashMap.member oldState (equiv t)) = (equiv t)
-            | otherwise = HashMap.insert newState n $ HashMap.delete oldState (equiv t)
+            | ((equiv t) HashMap.! oldState) /= n = (equiv t)
+            | otherwise = trace (show (n, oldState, (equiv t))) undefined -- $ HashMap.insert newState n $ HashMap.delete oldState (equiv t)
+-}
+
+
+updateState :: Trans -> Int -> (State -> State) -> Trans
+updateState t n f 
+    | oldState == newState  = t
+    | otherwise             = t {
+            states = HashMap.insert n newState (states t)
+        }
+    where
+        newState = f oldState
+        oldState = (states t) HashMap.! n
 
 -- **** Prints ****
 
@@ -237,7 +254,7 @@ maybeTuple _ Nothing = Nothing
 maybeTuple (Just x) (Just y) = Just (x, y)
 
 emptyTrans :: Trans
-emptyTrans = updateEquiv $ Trans {
+emptyTrans = Trans {
     start = 1,
     states = HashMap.fromList [
         (1, State (HashMap.empty) Nothing (HashMap.empty))
