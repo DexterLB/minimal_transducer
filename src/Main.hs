@@ -30,7 +30,7 @@ main = do
             $$ Co.decodeUtf8
             .| Co.linesUnbounded
             .| Co.map splitLine
-            .| Co.foldl addWordI (emptyTrans, ((T.pack ""), []))
+            .| Co.foldl addWordI emptyExcept
 
     let minimalT = finalise t
 

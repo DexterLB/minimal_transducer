@@ -21,7 +21,7 @@ type Except = (Text, [Int]) -- word and path for which the transducer is not min
 -- | constructs a minimal transducer with the given dictionary.
 -- | Keys must be sorted.
 minimalTransducer :: [(Text, Text)] -> Trans
-minimalTransducer inp = finalise $ addWords (emptyTrans, ("", [])) inp
+minimalTransducer inp = finalise $ addWords emptyExcept inp
 
 -- | perform final minimisation of a transducer minimal except for word
 finalise :: (Trans, Except) -> Trans
@@ -53,13 +53,12 @@ addWordI (!t, (!prevWord, !prevPath)) (!word, !output)
         -- set any outputs we have in common with parts of the prefix
         (tWithOut, leftoverOutput) = addOutput newT prefixPath prefix output
        
-        suffixPath = drop (T.length prefix) newPath
-
         -- set the last state of the current word's path to final (with no output)
         newT = setFinal tWithNewStates (last newPath) ""
 
         -- generate a path for the new word in the transducer
-        (tWithNewStates, newPath) = makePath minT word
+        newPath = prefixPath ++ (tail suffixPath)
+        (tWithNewStates, suffixPath) = makePathAfter minT (last prefixPath) suffix
 
         -- minimise the suffix of the previous word because it diverges
         -- with the current word
@@ -73,10 +72,12 @@ addWordI (!t, (!prevWord, !prevPath)) (!word, !output)
         --
         -- the "prev suffix" is the suffix of the previous word which diverges
         -- from the new word. It will be minimised and forgotten about.
-        prevSuffixPath                  = drop (T.length prefix)        prevPath
-        prefixPath                      = take (T.length prefix + 1)    prevPath
+        prevSuffixPath                  = drop  prefixLength         prevPath
+        prefixPath                      = take (prefixLength + 1)    prevPath
 
+        prefixLength                    = T.length prefix
         (prefix, prevSuffix, suffix)    = lcprefixes prevWord word
+
 
 -- | attach the given output to the word with the given path
 addOutput :: Trans
@@ -135,6 +136,17 @@ makePathFrom t n word = f (next t n a)
         a = T.head word
         w = T.tail word
 
+-- | make a path diverging from the given state
+makePathAfter :: Trans -> Int -> Text -> (Trans, [Int])
+makePathAfter t n "" = (t, [n])
+makePathAfter t n word = (newT, n : newPath)
+    where
+        (newT, newPath) = makePathAfter tt m w
+        (tt, m) = addState t n a
+
+        a = T.head word
+        w = T.tail word
+
 -- | adds a new state after the given state with the given transition
 addState :: Trans 
          -> Int             -- ^ the state from which we make a transition
@@ -175,6 +187,8 @@ minimiseTransition (from, a, to) t = checkEquiv toEquiv
 
         toEquiv = HashMap.lookup ((states t) HashMap.! to) (equiv t)
 
+emptyExcept :: (Trans, Except)
+emptyExcept = (emptyTrans, ((T.pack ""), [start emptyTrans]))
 -- **** utils ****
 
 -- | longest common prefix
