@@ -14,14 +14,14 @@ import Data.Foldable (foldl')
 
 import Data.Text (Text)
 import qualified Data.Text as T
-import Debug.Trace (trace)
+import Debug.Trace (trace, traceShowId)
 
 type Except = (Text, [Int]) -- word and path for which the transducer is not minimal
 
 -- | constructs a minimal transducer with the given dictionary.
 -- | Keys must be sorted.
 minimalTransducer :: [(Text, Text)] -> Trans
-minimalTransducer inp = finalise $ addWords (emptyTrans, ("", [])) inp
+minimalTransducer inp = finalise $ addWords emptyNonMinimalTrans inp
 
 -- | perform final minimisation of a transducer minimal except for word
 finalise :: (Trans, Except) -> Trans
@@ -53,18 +53,21 @@ addWordI (!t, (!prevWord, !prevPath)) (!word, !output)
         -- set any outputs we have in common with parts of the prefix
         (tWithOut, leftoverOutput) = addOutput newT prefixPath prefix output
        
-        suffixPath = drop (T.length prefix) newPath
-
         -- set the last state of the current word's path to final (with no output)
-        newT = setFinal tWithNewStates (last newPath) ""
+        newT = setFinal tWithNewStates (last newPath) "" -- O(n), but who cares :)
 
         -- generate a path for the new word in the transducer
-        (tWithNewStates, newPath) = makePath minT word
+        newPath = prefixPath ++ (tail suffixPath)
+        (tWithNewStates, suffixPath) = makePathAfter minT (last prefixPath) suffix
 
         -- minimise the suffix of the previous word because it diverges
         -- with the current word
         minT = minimisePath t prevSuffix prevSuffixPath
 
+
+        divergingState
+            | null prefixPath = start t
+            | otherwise = last prefixPath
 
         -- the "prefix" is the common prefix of the current and previous words
         
@@ -96,7 +99,7 @@ addOutput t (p:q:path) word output = addOutput newT (q:path) w suffix
 
         (commonPrefix, currentSuffix, suffix) = lcprefixes currentOutput output
         
-        currentOutput   = outEmpty t p a
+        currentOutput   = lastOutput t p
 
         a = T.head word
         w = T.tail word
@@ -136,6 +139,17 @@ makePathFrom t n word = f (next t n a)
         a = T.head word
         w = T.tail word
 
+-- | make a path diverging from the given state
+makePathAfter :: Trans -> Int -> Text -> (Trans, [Int])
+makePathAfter t n "" = (t, [n])
+makePathAfter t n word = (newT, n : newPath)
+    where
+        (newT, newPath) = makePathAfter tt m w
+        (tt, m) = addState t n a
+
+        a = T.head word
+        w = T.tail word
+
 -- | adds a new state after the given state with the given transition
 addState :: Trans 
          -> Int             -- ^ the state from which we make a transition
@@ -171,6 +185,11 @@ minimiseTransition (from, a, to) t = checkEquiv toEquiv
                 t' = (addTransitionLex from a n $ delState to t)
 
         toEquiv = HashMap.lookup ((states t) HashMap.! to) (equiv t)
+
+emptyNonMinimalTrans :: (Trans, Except)
+emptyNonMinimalTrans = (t, ((T.pack ""), [start t]))
+    where
+        t = emptyTrans
 
 -- **** utils ****
 

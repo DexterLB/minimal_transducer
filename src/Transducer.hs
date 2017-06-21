@@ -73,6 +73,9 @@ nextO t n a = stateOutput (next t n a) (out t n a)
         stateOutput (Just state) Nothing = Just (state, "")
         stateOutput (Just state) (Just output) = Just (state, output)
 
+lastOutput :: Trans -> Int -> Text
+lastOutput t n = V.last $ output (state t n)
+
 -- | same as `out`, but returns empty string when there's no output
 outEmpty :: Trans -> Int -> Char -> Text
 outEmpty t n a = extractOutput $ out t n a
