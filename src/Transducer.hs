@@ -109,8 +109,9 @@ bump key newValue m
 
 delState :: Int -> Trans -> Trans
 delState n t = t {
-        states = HashMap.delete n (states t),
-        equiv = HashMap.delete ((states t) HashMap.! n) (equiv t)
+        states = HashMap.delete n (states t)
+--        equiv = HashMap.delete ((states t) HashMap.! n) (equiv t)
+--        we'll only be deleting states that aren't in equivalence
     }
 
 
