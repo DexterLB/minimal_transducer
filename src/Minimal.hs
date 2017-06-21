@@ -48,7 +48,7 @@ addWordI (!t, (!prevWord, !prevPath)) (!word, !output)
     where
         -- set the remaining output to the first transition that's only part
         -- of the new word (e.g. the first element of the suffix)
-        finalT = setOutput tWithOut (head suffixPath) (T.head suffix) leftoverOutput
+        finalT = setLastOutput tWithOut (head suffixPath) (T.head suffix) leftoverOutput
 
         -- set any outputs we have in common with parts of the prefix
         (tWithOut, leftoverOutput) = addOutput newT prefixPath prefix output
@@ -73,9 +73,10 @@ addWordI (!t, (!prevWord, !prevPath)) (!word, !output)
         --
         -- the "prev suffix" is the suffix of the previous word which diverges
         -- from the new word. It will be minimised and forgotten about.
-        prevSuffixPath                  = drop (T.length prefix)        prevPath
-        prefixPath                      = take (T.length prefix + 1)    prevPath
+        prevSuffixPath                  = drop  prefixLength         prevPath
+        prefixPath                      = take (prefixLength + 1)    prevPath
 
+        prefixLength                    = T.length prefix
         (prefix, prevSuffix, suffix)    = lcprefixes prevWord word
 
 -- | attach the given output to the word with the given path
@@ -91,7 +92,7 @@ addOutput t (p:q:path) word output = addOutput newT (q:path) w suffix
         newT = prependToOutputs tWithOutputPrefix q currentSuffix
 
         -- output the common prefix at the current transition
-        tWithOutputPrefix = setOutput t p a commonPrefix
+        tWithOutputPrefix = setLastOutput t p a commonPrefix
 
         (commonPrefix, currentSuffix, suffix) = lcprefixes currentOutput output
         
@@ -143,16 +144,12 @@ addState :: Trans
 addState t prevStateID a 
     = (t', newStateID)
         where
-            t' = addTransition prevStateID a newStateID $ t {
+            t' = addTransitionLex prevStateID a newStateID $ t {
                 states = HashMap.insert newStateID newState (states t),
                 lastState = newStateID
             }
 
-            newState = State {
-                transition = HashMap.fromList [],
-                final = Nothing,
-                output = HashMap.fromList []
-            }
+            newState = emptyState
 
             newStateID = lastState t + 1
 
@@ -171,7 +168,7 @@ minimiseTransition (from, a, to) t = checkEquiv toEquiv
                     equiv = HashMap.insert (state t n) n (equiv t')
                 }
             where
-                t' = (addTransition from a n $ delState to t)
+                t' = (addTransitionLex from a n $ delState to t)
 
         toEquiv = HashMap.lookup ((states t) HashMap.! to) (equiv t)
 

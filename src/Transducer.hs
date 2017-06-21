@@ -11,8 +11,17 @@ import Data.Hashable (hashWithSalt, Hashable)
 
 import Data.Maybe (fromJust)
 
+import Data.List (zip4)
+
 import Data.Text (Text)
 import qualified Data.Text as T
+
+import Data.Vector (Vector)
+import qualified Data.Vector as V
+
+import qualified Data.Vector.Algorithms.Search as VS
+
+import Debug.Trace (trace)
 
 -- **** traversing ****
 
@@ -73,11 +82,15 @@ outEmpty t n a = extractOutput $ out t n a
 
 -- | returns the output when performing a transition with the given symbol
 out :: Trans -> Int -> Char -> Maybe Text
-out t n a = HashMap.lookup a (output $ state t n)
+out t n a = ((output curState) V.!?) =<< (transitionIndex curState a)
+    where
+        curState = state t n
 
 -- | returns the next state when performing a transition with the given symbol
 next :: Trans -> Int -> Char -> Maybe Int
-next t n a = HashMap.lookup a (transition $ state t n)
+next t n a = ((transitionTo curState) V.!?) =<< (transitionIndex curState a)
+    where
+        curState = state t n
 
 -- | returns the state with the given id
 state :: Trans -> Int -> State
@@ -94,13 +107,30 @@ updateEquiv Trans {states, start, lastState} = Trans {
 
 -- **** Mutations ****
 
-addTransition :: Int -> Char -> Int -> Trans -> Trans
-addTransition from a to t = updateState t from f
+-- | adds a transition, assuming it is lexicographically greater than the
+-- | previous.
+addTransitionLex :: Int -> Char -> Int -> Trans -> Trans
+addTransitionLex from a to t = updateState t from f
     where
-        f state = state {
-                transition = HashMap.insert a to (transition state),
-                output = bump a "" (output state)
-            }
+        f state 
+            | (V.length tChars == 0) || a > (V.last tChars) = state {
+                    transitionChar  = V.snoc tChars a,
+                    transitionTo    = V.snoc tTo to,
+                    output          = V.snoc out ""
+                }
+            | a == (V.last tChars) = state {
+                    transitionTo = tTo V.//
+                        [(last, to)]
+                }
+            | otherwise = error (
+                    "trying to add an unordered transition to state "
+                    ++ (show state) ++ ": " ++ (show (from, a, to))
+                )
+            where
+                last = V.length tChars - 1
+                tChars   = transitionChar state
+                tTo      = transitionTo state
+                out     = output state
 
 bump :: (Eq k, Hashable k) => k -> v -> HashMap k v -> HashMap k v
 bump key newValue m
@@ -118,7 +148,7 @@ prependToOutputs :: Trans -> Int -> Text -> Trans
 prependToOutputs t n out = updateState t n f
     where
         f state = state {
-            output = HashMap.map (out `T.append`) (output state),
+            output = V.map (out `T.append`) (output state),
             final = (out `T.append`) <$> (final state)
         }
 
@@ -134,7 +164,28 @@ setOutput :: Trans -> Int -> Char -> Text -> Trans
 setOutput t n a out = updateState t n f
     where
         f state = state {
-            output = HashMap.insert a out (output state)
+                output = (output state) V.// [(index, out)]
+            }
+            where
+                index = fromJust $ transitionIndex state a
+
+setLastOutput :: Trans -> Int -> Char -> Text -> Trans
+setLastOutput t n a out = updateState t n f
+    where
+        f state = state {
+                output = (output state) V.// [(index, out)]
+            }
+            where
+                index
+                    | V.last (transitionChar state) == a 
+                        = V.length (transitionChar state) - 1
+                    | otherwise = error "setting non-last output"
+
+setOutputAt :: Trans -> Int -> Int -> Text -> Trans
+setOutputAt t n index out = updateState t n f
+    where
+        f state = state {
+            output = (output state) V.// [(index, out)]
         }
 
 -- | updates a state both in the state table
@@ -165,13 +216,19 @@ showTransDataLines Trans {states, start}
     ++ (map ("  " ++) (foldr (++) [] (map showStateLines (HashMap.toList states))))
 
 showStateLines :: (Int, State) -> [String]
-showStateLines (n, State {transition, final, output})
-    =  ["state " ++ (show n) ++ ":"]
-    ++ ["  transitions:"]
-    ++ (map ("    " ++) (showMapLines transition))
-    ++ ["  outputs:"]
-    ++ (map ("    " ++) (showMapLines output))
-    ++ (showFinalLines final)
+showStateLines (n, State {
+        transitionChar, transitionTo, final, output
+    })
+        =  ["state " ++ (show n) ++ ":"]
+        ++ ["  transitions:"]
+        ++ (map (("    " ++) . showTransition) transitions)
+        ++ (showFinalLines final)
+    where
+        transitions = (zip4
+            (repeat n)
+            (V.toList transitionChar)
+            (V.toList transitionTo)
+            (V.toList output))
 
 showVerifyEquivLines :: Trans -> [String]
 showVerifyEquivLines t
@@ -183,18 +240,29 @@ verifyEquiv Trans {states, equiv} = (
         HashMap.fromList $ map (\(x, y) -> (y, x)) $ (HashMap.toList states)
     ) == equiv
 
+showTransition :: (Int, Char, Int, Text) -> String
+showTransition (from, c, to, output) = 
+    (show from) ++ " [" ++ [c] ++ "] -> " ++ (show to) ++ ": " ++ (T.unpack output)
+
 showMapLines :: (Show k, Show v) => HashMap k v -> [String]
-showMapLines = (map showPair) . HashMap.toList
-    where
-        showPair (k, v) = (show k) ++ " -> " ++ (show v)
+showMapLines = showPairLines . HashMap.toList
+
+showPairLines :: (Show k, Show v) => [(k, v)] -> [String]
+showPairLines = map showPair
+
+showPair :: (Show k, Show v) => (k, v) -> String
+showPair (k, v) = (show k) ++ " -> " ++ (show v)
 
 showFinalLines :: (Show o) => Maybe o -> [String]
 showFinalLines Nothing = []
 showFinalLines (Just output) = ["  final with output " ++ (show output)]
 
+-- to do: binary search
+transitionIndex :: State -> Char -> Maybe Int
+transitionIndex (State {transitionChar}) c = V.elemIndex c transitionChar
 
 instance Hashable State where
-    hashWithSalt salt State {transition, final, output}
+    hashWithSalt salt State {transitionChar, transitionTo, final, output}
         -- it appears that most of the time it's faster to hash only the size
         -- of the output and whether the state is final, and manually compare
         -- the remaining states for equivalence
@@ -204,15 +272,20 @@ instance Hashable State where
 
 
         -- = hashWithSalt salt (transition, T.length <$> final, HashMap.size output)
-        = hashWithSalt salt (transition, final, output)
+        = hashWithSalt salt (
+            V.toList transitionChar, 
+            V.toList transitionTo, 
+            final, 
+            V.toList output)
     
 
 -- **** Data ****
 
 data State = State {
-    transition :: HashMap Char Int,
+    transitionChar :: Vector Char,
+    transitionTo :: Vector Int,
     final :: Maybe Text,
-    output :: HashMap Char Text
+    output :: Vector Text
 } deriving (Eq)
 
 data Trans = Trans {
@@ -233,8 +306,16 @@ emptyTrans :: Trans
 emptyTrans = Trans {
     start = 1,
     states = HashMap.fromList [
-        (1, State (HashMap.empty) Nothing (HashMap.empty))
+        (1, State (V.empty) (V.empty) Nothing (V.empty))
     ],
     equiv = HashMap.fromList [],
     lastState = 1
+}
+
+emptyState :: State
+emptyState = State {
+    transitionChar = V.empty,
+    transitionTo = V.empty,
+    output = V.empty,
+    final = Nothing
 }
