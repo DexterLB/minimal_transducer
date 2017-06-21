@@ -10,6 +10,9 @@ import Transducer
 import qualified Data.HashMap.Strict as HashMap
 import Data.HashMap.Strict (HashMap)
 
+import qualified Data.Map.Strict as Map
+import Data.Map.Strict (Map)
+
 import Data.Foldable (foldl')
 
 import Data.Text (Text)
@@ -174,17 +177,17 @@ minimiseTransition :: (Int, Char, Int) -> Trans -> Trans
 minimiseTransition (from, a, to) t = checkEquiv toEquiv
     where
         checkEquiv Nothing = t {  -- state is unique, add it to the equivalence table
-                equiv = HashMap.insert (state t to) to (equiv t)
+                equiv = Map.insert (state t to) to (equiv t)
             }
         checkEquiv (Just n)
             | n == to   = t   -- state is already part of the minimal path
             | otherwise = t' {
-                    equiv = HashMap.insert (state t n) n (equiv t')
+                    equiv = Map.insert (state t n) n (equiv t')
                 }
             where
                 t' = (addTransitionLex from a n $ delState to t)
 
-        toEquiv = HashMap.lookup ((states t) HashMap.! to) (equiv t)
+        toEquiv = Map.lookup ((states t) HashMap.! to) (equiv t)
 
 emptyNonMinimalTrans :: (Trans, Except)
 emptyNonMinimalTrans = (t, ((T.pack ""), [start t]))

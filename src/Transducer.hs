@@ -7,6 +7,9 @@ module Transducer where
 import qualified Data.HashMap.Strict as HashMap
 import Data.HashMap.Strict (HashMap)
 
+import qualified Data.Map.Strict as Map
+import Data.Map.Strict (Map)
+
 import Data.Hashable (hashWithSalt, Hashable)
 
 import Data.Maybe (fromJust)
@@ -104,7 +107,7 @@ updateEquiv :: Trans -> Trans
 updateEquiv Trans {states, start, lastState} = Trans {
     states = states,
     start = start,
-    equiv = HashMap.fromList $ map (\(x, y) -> (y, x)) $  HashMap.toList states,
+    equiv = Map.fromList $ map (\(x, y) -> (y, x)) $ HashMap.toList states,
     lastState = lastState
 }
 
@@ -142,8 +145,8 @@ bump key newValue m
 
 delState :: Int -> Trans -> Trans
 delState n t = t {
-        states = HashMap.delete n (states t),
-        equiv = HashMap.delete ((states t) HashMap.! n) (equiv t)
+        states = HashMap.delete n (states t)
+--        equiv = HashMap.delete ((states t) HashMap.! n) (equiv t)
     }
 
 
@@ -240,7 +243,7 @@ showVerifyEquivLines t
 
 verifyEquiv :: Trans -> Bool
 verifyEquiv Trans {states, equiv} = (
-        HashMap.fromList $ map (\(x, y) -> (y, x)) $ (HashMap.toList states)
+        Map.fromList $ map (\(x, y) -> (y, x)) $ (HashMap.toList states)
     ) == equiv
 
 showTransition :: (Int, Char, Int, Text) -> String
@@ -280,7 +283,24 @@ instance Hashable State where
             V.toList transitionTo, 
             final, 
             V.toList output)
-    
+
+instance Ord State where
+    compare a b
+        | a_is_final && (not b_is_final)    = LT
+        | (not a_is_final) && b_is_final    = GT
+        | destinations /= EQ                = destinations
+        | labels /= EQ                      = labels
+        | outputs /= EQ                     = outputs
+        | final_output /= EQ                = final_output
+        | otherwise                         = EQ
+        where
+            a_is_final = final a /= Nothing
+            b_is_final = final b /= Nothing
+
+            labels = compare (transitionChar a) (transitionChar b)
+            destinations = compare (transitionTo a) (transitionTo b)
+            outputs = compare (output a) (output b)
+            final_output = compare (final a) (final b)
 
 -- **** Data ****
 
@@ -293,7 +313,7 @@ data State = State {
 
 data Trans = Trans {
     states :: HashMap Int State,
-    equiv :: HashMap State Int,
+    equiv :: Map State Int,
     start :: Int,
     lastState :: Int
 } deriving (Eq)
@@ -311,7 +331,7 @@ emptyTrans = Trans {
     states = HashMap.fromList [
         (1, State (V.empty) (V.empty) Nothing (V.empty))
     ],
-    equiv = HashMap.fromList [],
+    equiv = Map.empty,
     lastState = 1
 }
 
