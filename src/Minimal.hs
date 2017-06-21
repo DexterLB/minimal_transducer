@@ -73,8 +73,9 @@ addWordI (!t, (!prevWord, !prevPath)) (!word, !output)
         --
         -- the "prev suffix" is the suffix of the previous word which diverges
         -- from the new word. It will be minimised and forgotten about.
-        prevSuffixPath  =   drop (T.length prefix) (path t (start t) prevWord)
-        prefixPath                      = path t (start t) prefix
+        prevSuffixPath                  = drop (T.length prefix)        prevPath
+        prefixPath                      = take (T.length prefix + 1)    prevPath
+
         (prefix, prevSuffix, suffix)    = lcprefixes prevWord word
 
 -- | attach the given output to the word with the given path
