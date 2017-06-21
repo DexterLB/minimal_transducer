@@ -14,38 +14,31 @@ import Data.Foldable (foldl')
 
 import Data.Text (Text)
 import qualified Data.Text as T
+import Debug.Trace (trace)
+
+type Except = (Text, [Int]) -- word and path for which the transducer is not minimal
 
 -- | constructs a minimal transducer with the given dictionary.
 -- | Keys must be sorted.
 minimalTransducer :: [(Text, Text)] -> Trans
-minimalTransducer inp = finalise $ addWords (emptyTrans, "") inp
+minimalTransducer inp = finalise $ addWords (emptyTrans, ("", [])) inp
 
 -- | perform final minimisation of a transducer minimal except for word
-finalise :: (Trans, Text) -> Trans
-finalise (t, word) = minimiseWord t word
+finalise :: (Trans, Except) -> Trans
+finalise (t, (word, path)) = minimisePath t word path
 
 -- | equivalent to multiple calls of addWordI. Works well with huge lazy lists.
 -- | Keys must be sorted.
-addWords :: (Trans, Text) -> [(Text, Text)] -> (Trans, Text)
+addWords :: (Trans, Except) -> [(Text, Text)] -> (Trans, Except)
 addWords = foldl' addWordI
-
--- | the "transformation" version of addWord. The (transducer, lastWord) tuple
--- | is transformed, adding the new word.
-addWordI :: (Trans, Text)       -- ^ transducer, lastWord
-         -> (Text, Text)        -- ^ newWord, output
-         -> (Trans, Text)       -- ^ newTransducer, newWord
-addWordI (!t, !prevWord) (!newWord, !output)
-    = (addWord t prevWord newWord output, newWord)
 
 -- | add a word to the transducer. It must be minimal except for the previous word,
 -- | and after this operation will be minimal except for the new word.
-addWord :: Trans
-        -> Text   -- ^ previous word
-        -> Text   -- ^ word to add (must be lexicographically > than previous)
-        -> Text   -- ^ output for the added word
-        -> Trans
-addWord t prevWord word output
-    | T.length suffix /= 0 = finalT
+addWordI :: (Trans, Except)       -- ^ transducer, lastWord, lastPath
+         -> (Text, Text)          -- ^ newWord, output
+         -> (Trans, Except)       -- ^ newTransducer, newWord, newPath
+addWordI (!t, (!prevWord, !prevPath)) (!word, !output)
+    | T.length suffix /= 0 = (finalT, (word, newPath))
     | otherwise = error $ 
                           "words " 
                           ++ (T.unpack prevWord) 
