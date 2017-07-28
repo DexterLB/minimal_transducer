@@ -9,8 +9,6 @@ import Data.HashMap.Strict (HashMap)
 
 import Data.Hashable (hashWithSalt, Hashable)
 
-import Data.Maybe (fromJust)
-
 import Data.Text (Text)
 import qualified Data.Text as T
 

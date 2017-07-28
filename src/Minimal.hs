@@ -8,13 +8,12 @@ module Minimal where
 import Transducer
 
 import qualified Data.HashMap.Strict as HashMap
-import Data.HashMap.Strict (HashMap)
+import Data.HashMap.Strict ()
 
 import Data.Foldable (foldl')
 
 import Data.Text (Text)
 import qualified Data.Text as T
-import Debug.Trace (trace)
 
 type Except = (Text, [Int]) -- word and path for which the transducer is not minimal
 
@@ -25,7 +24,7 @@ minimalTransducer inp = finalise $ addWords emptyExcept inp
 
 -- | perform final minimisation of a transducer minimal except for word
 finalise :: (Trans, Except) -> Trans
-finalise (t, (word, path)) = minimisePath t word path
+finalise (t, (word, wordPath)) = minimisePath t word wordPath
 
 -- | equivalent to multiple calls of addWordI. Works well with huge lazy lists.
 -- | Keys must be sorted.
@@ -86,7 +85,7 @@ addOutput :: Trans
           -> Text             -- ^ output
           -> (Trans, Text)    -- ^ new transducer and the leftover output
 addOutput t _ "" output = (t, output)
-addOutput t (p:q:path) word output = addOutput newT (q:path) w suffix
+addOutput t (p:q:wordPath) word output = addOutput newT (q:wordPath) w suffix
     where
         -- move incompatible outputs to the right
         newT = prependToOutputs tWithOutputPrefix q currentSuffix
@@ -108,9 +107,9 @@ minimiseWord t w = minimisePath t w (path t (start t) w)
 -- | if the given transducer is minimal except for (pref . word), it now becomes
 -- | minimal except for pref.
 minimisePath :: Trans -> Text -> [Int] -> Trans
-minimisePath t word path = minimiseZippedPath t zipped
+minimisePath t word wordPath = minimiseZippedPath t zipped
     where
-        zipped = zipWith (\(x, y) z -> (x, y, z)) (zip path (T.unpack word)) (tail path)
+        zipped = zipWith (\(x, y) z -> (x, y, z)) (zip wordPath (T.unpack word)) (tail wordPath)
 
 minimiseZippedPath :: Trans -> [(Int, Char, Int)] -> Trans
 minimiseZippedPath t = foldr minimiseTransition t
@@ -201,4 +200,5 @@ lcprefixes a b = couldBeEmpty (T.commonPrefixes a b)
         couldBeEmpty Nothing            = (T.empty, a, b)
         couldBeEmpty (Just prefixes)    = prefixes
 
-fst3 (a, _, _) = a
+fst3 :: (a, b, c) -> a
+fst3 (x, _, _) = x
