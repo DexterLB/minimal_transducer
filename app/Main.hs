@@ -39,7 +39,13 @@ main = do
 prompt :: Trans -> String -> String
 prompt t = 
     unlines . 
-    (("built transducer with " ++ (show $ length $ states t) ++ " states.") :) .
+    ((
+        "built transducer with "
+        ++ (show $ length $ states t) 
+        ++ " states and "
+        ++ (show $ transitionCount t)
+        ++ " transitions."
+    ) :) .
     (map (linePrompt t)) . lines
 
 linePrompt :: Trans -> String -> String
