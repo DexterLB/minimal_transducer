@@ -193,6 +193,9 @@ showFinalLines :: (Show o) => Maybe o -> [String]
 showFinalLines Nothing = []
 showFinalLines (Just output) = ["  final with output " ++ (show output)]
 
+transitionCount :: Trans -> Int
+transitionCount Trans {states} = sum $ HashMap.map (\s -> HashMap.size $ transition s) states
+
 
 instance Hashable State where
     hashWithSalt salt State {transition, final, output}
