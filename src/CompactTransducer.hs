@@ -5,7 +5,6 @@
 module CompactTransducer where
 
 import Data.Vector (Vector, (!))
-import qualified Data.Vector as V
 
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -53,8 +52,9 @@ finalOutput :: Trans -> Int -> Maybe Text
 finalOutput t state = check (finals t ! state)
     where
         check :: Int -> Maybe Text
-        check -1 = Nothing
-        check outputIndex = Just $ (possibleOutputs t) ! outputIndex
+        check outputIndex
+            | outputIndex < 0 = Nothing
+            | otherwise       = Just $ (possibleOutputs t) ! outputIndex
 
 -- | traverses from the given state with the given word, and returns the
 -- | result path with respective outputs
@@ -63,15 +63,15 @@ pathO t state word = reverse $ pathO' [] t state word
     where
         pathO' :: [(Int, Text)] -> Trans -> Int -> Text -> [(Int, Text)]
         pathO' accum _ _ "" = accum
-        pathO' accum t state word = check $ nextO t state char
+        pathO' accum t' state' word' = check $ nextO t' state' char
             where
                 check :: Maybe (Int, Text) -> [(Int, Text)]
                 check Nothing = accum
                 check (Just (nextState, output)) 
-                    = pathO' ((nextState, output) : accum) t nextState rest
+                    = pathO' ((nextState, output) : accum) t' nextState rest
 
-                rest = T.tail word
-                char = T.head word
+                rest = T.tail word'
+                char = T.head word'
 
 -- | returns the next state and output with the given transition
 nextO :: Trans -> Int -> Char -> Maybe (Int, Text)
@@ -88,9 +88,9 @@ transition t stateID labelID = (next, out)
 -- | returns the index of the transition from the given state with
 -- | the given label
 lookupLabel :: Trans -> Int -> Char -> Maybe Int
-lookupLabel t id c = T.findIndex (== c) labels
+lookupLabel t stateID c = T.findIndex (== c) labels
     where
-        labels = ((transitionSources t) ! (froms t ! id))
+        labels = ((transitionSources t) ! (froms t ! stateID))
 
 -- | performs a lookup in one of the pseudo-2D arrays
 l2 :: Trans -> (Trans -> Vector a) -> Int -> Int -> a
