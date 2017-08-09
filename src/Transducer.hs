@@ -12,6 +12,14 @@ import Data.Hashable (hashWithSalt, Hashable)
 import Data.Text (Text)
 import qualified Data.Text as T
 
+import Data.Vector (Vector)
+import qualified Data.Vector as Vector
+
+import qualified Data.List.Unique as Uniq
+
+import qualified JsonTransducer as JT
+
+
 -- **** traversing ****
 
 -- | returns the output of the transducer for a given word
@@ -208,6 +216,24 @@ instance Hashable State where
         -- = hashWithSalt salt (transition, T.length <$> final, HashMap.size output)
         = hashWithSalt salt (transition, final, output)
     
+
+
+-- **** conversion ****
+
+toJsonTrans :: Trans -> JT.Trans
+toJsonTrans t = JT.Trans {
+    alphabet = alphabet,
+    states = Vector.empty,
+    possibleOutputs = Vector.empty
+}
+    where
+        alphabet = sortedAlphabet t
+
+sortedAlphabet :: Trans -> Vector Char
+sortedAlphabet t = Vector.fromList $ Uniq.sortUniq allLabels
+    where
+        allLabels = concat $ map (HashMap.keys . transition)
+                    $ HashMap.elems (states t)
 
 -- **** Data ****
 
