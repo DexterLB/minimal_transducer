@@ -1,6 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Main where
 
@@ -19,6 +18,12 @@ import qualified Data.Conduit.Combinators as Co
 import Data.Text (Text)
 import qualified Data.Text as T
 
+import Data.ByteString.Lazy (ByteString)
+import qualified Data.ByteString.Lazy as ByteString
+import qualified Data.ByteString.Lazy.Char8 as ByteString8
+
+import qualified Data.Aeson as Aeson
+
 -- | read a dictionary file (the first argument), and then read words from
 -- | stdin and print their outputs to stdout
 main :: IO ()
@@ -34,7 +39,16 @@ main = do
 
     let minimalT = finalise t
 
-    interact $ prompt minimalT
+    useTrans args minimalT
+
+useTrans :: [String] -> Trans -> IO ()
+useTrans args t
+    | (length args < 2) || ((args !! 1) /= "-j") 
+        = interact $ prompt t
+    | otherwise = ByteString8.putStrLn $ jsonify t
+
+jsonify :: Trans -> ByteString
+jsonify t = Aeson.encode $ toJsonTrans t
 
 prompt :: Trans -> String -> String
 prompt t = 

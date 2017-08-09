@@ -26,7 +26,7 @@ library
                      , hashable >=1.2, text >=1.2
                      , conduit >=1.2, conduit-combinators >=1.1
                      , resourcet >=1.1, vector >=0.12, aeson >=1.0
-                     , Unique >=0.4
+                     , Unique >=0.4, bytestring >=0.10
   default-language:    Haskell2010
 
 executable minimal-transducer
@@ -38,7 +38,7 @@ executable minimal-transducer
                      , hashable >=1.2, text >=1.2
                      , conduit >=1.2, conduit-combinators >=1.1
                      , resourcet >=1.1, vector >=0.12, aeson >= 1.0
-                     , Unique >=0.4
+                     , Unique >=0.4, bytestring >=0.10
   default-language:    Haskell2010
 
 test-suite minimal-transducer-test
