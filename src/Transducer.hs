@@ -223,17 +223,77 @@ instance Hashable State where
 toJsonTrans :: Trans -> JT.Trans
 toJsonTrans t = JT.Trans {
     alphabet = alphabet,
-    states = Vector.empty,
-    possibleOutputs = Vector.empty
+    states = Vector.map (toJsonTransState t stateIndex outputIndex alphabetIndex)
+            $ oldStates,
+    possibleOutputs = outputs
 }
     where
-        alphabet = sortedAlphabet t
+        (oldStates, stateIndex) = indexedArray $ HashMap.elems $ states t
+        (outputs, outputIndex) = indexedArray $ allOutputs t
+        (alphabet, alphabetIndex) = indexedAlphabet t
 
-sortedAlphabet :: Trans -> Vector Char
-sortedAlphabet t = Vector.fromList $ Uniq.sortUniq allLabels
+toJsonTransState :: Trans 
+                 -> HashMap State Int 
+                 -> HashMap Text Int
+                 -> HashMap Char Int
+                 -> State -> JT.State
+
+toJsonTransState t stateIndex outputIndex alphabetIndex state
+    = JT.State {
+        final = finalIndexOutput outputIndex (final state),
+        transitions = HashMap.fromList 
+            $ map (toJsonTransTransition t stateIndex outputIndex alphabetIndex)
+            $ transitionTuples
+    }
+    where
+        transitionTuples = map addOutput $ HashMap.toList $ transition state
+
+        addOutput :: (Char, Int) -> (Char, Int, Text)
+        addOutput (c, next) = (c, next, (output state HashMap.! c))
+
+toJsonTransTransition :: Trans
+                      -> HashMap State Int
+                      -> HashMap Text Int
+                      -> HashMap Char Int
+                      -> (Char, Int, Text)
+                      -> (Int, JT.Target)
+toJsonTransTransition t stateIndex outputIndex alphabetIndex (with, to, out)
+    = ((alphabetIndex HashMap.! with), target)
+    where
+        target = JT.Target {
+            state   = stateIndex HashMap.! (states t HashMap.! to),
+            output  = outputIndex HashMap.! out
+        }
+
+finalIndexOutput :: HashMap Text Int -> Maybe Text -> Int
+finalIndexOutput _ Nothing = -1
+finalIndexOutput outputIndex (Just output) = outputIndex HashMap.! output
+
+indexedAlphabet :: Trans -> (Vector Char, HashMap Char Int)
+indexedAlphabet t = (Vector.fromList sorted, map)
+    where
+        sorted  = sortedAlphabet t
+        map     = HashMap.fromList $ zip sorted [0..]
+
+sortedAlphabet :: Trans -> [Char]
+sortedAlphabet t = Uniq.sortUniq allLabels
     where
         allLabels = concat $ map (HashMap.keys . transition)
                     $ HashMap.elems (states t)
+
+indexedArray :: (Eq a, Hashable a) => [a] -> (Vector a, HashMap a Int)
+indexedArray l = (Vector.fromList elems, HashMap.fromList $ zip elems [0..])
+    where
+        elems = HashMap.keys $ HashMap.fromList $ zip l (repeat Void)
+
+allOutputs :: Trans -> [Text]
+allOutputs t = concat $ map allStateOutputs $ HashMap.elems $ states t
+
+allStateOutputs :: State -> [Text]
+allStateOutputs state = maybePrepend (final state) 
+                        $ HashMap.elems $ output state
+
+data Void = Void Void
 
 -- **** Data ****
 
@@ -256,6 +316,10 @@ maybeTuple :: (Maybe a) -> (Maybe b) -> Maybe (a, b)
 maybeTuple Nothing _ = Nothing
 maybeTuple _ Nothing = Nothing
 maybeTuple (Just x) (Just y) = Just (x, y)
+
+maybePrepend :: (Maybe a) -> [a] -> [a]
+maybePrepend Nothing l = l
+maybePrepend (Just elem) l = elem : l
 
 emptyTrans :: Trans
 emptyTrans = Trans {
