@@ -5,6 +5,7 @@ module Main where
 
 import Transducer
 import Minimal
+import qualified JsonTransducer as JT
 
 import Data.Char (isSpace)
 import System.Environment (getArgs)
@@ -60,10 +61,17 @@ prompt t =
         ++ (show $ transitionCount t)
         ++ " transitions."
     ) :) .
-    (map (linePrompt t)) . lines
+    ((
+        "converted transducer to JsonTransducer with "
+        ++ (show $ length $ JT.states jt)
+        ++ " states."
+    ) :) .
+    (map (linePrompt jt)) . lines
+    where
+        jt = toJsonTrans t
 
-linePrompt :: Trans -> String -> String
-linePrompt t = (" -> " ++) . T.unpack . deMaybe . (match t) . T.pack
+linePrompt :: JT.Trans -> String -> String
+linePrompt jt = (" -> " ++) . T.unpack . deMaybe . (JT.match jt) . T.pack
 
 splitLine :: Text -> (Text, Text)
 splitLine s = (

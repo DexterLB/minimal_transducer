@@ -228,7 +228,7 @@ toJsonTrans t = JT.Trans {
     possibleOutputs = outputs
 }
     where
-        (oldStates, stateIndex) = indexedArray $ HashMap.elems $ states t
+        (oldStates, stateIndex) = indexedStates t
         (outputs, outputIndex) = indexedArray $ allOutputs t
         (alphabet, alphabetIndex) = indexedAlphabet t
 
@@ -269,8 +269,8 @@ finalIndexOutput :: HashMap Text Int -> Maybe Text -> Int
 finalIndexOutput _ Nothing = -1
 finalIndexOutput outputIndex (Just output) = outputIndex HashMap.! output
 
-indexedAlphabet :: Trans -> (Vector Char, HashMap Char Int)
-indexedAlphabet t = (Vector.fromList sorted, map)
+indexedAlphabet :: Trans -> (Text, HashMap Char Int)
+indexedAlphabet t = (T.pack sorted, map)
     where
         sorted  = sortedAlphabet t
         map     = HashMap.fromList $ zip sorted [0..]
@@ -292,6 +292,19 @@ allOutputs t = concat $ map allStateOutputs $ HashMap.elems $ states t
 allStateOutputs :: State -> [Text]
 allStateOutputs state = maybePrepend (final state) 
                         $ HashMap.elems $ output state
+
+indexedStates :: Trans -> (Vector State, HashMap State Int)                        
+indexedStates t = (Vector.fromList states, HashMap.fromList $ zip states [0..])
+    where
+        states = sortedStates t
+
+sortedStates :: Trans -> [State]
+sortedStates t = check $ HashMap.lookup (start t) (states t)
+    where
+        check :: Maybe State -> [State]
+        check Nothing = []
+        check (Just startState) = startState : (HashMap.elems 
+            $ HashMap.delete (start t) (states t))
 
 data Void = Void Void
 
