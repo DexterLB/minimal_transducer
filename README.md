@@ -9,6 +9,9 @@ By default, the executable reads the dictionary provided as
 a first argument, constructs the transducer and goes into an
 interactive prompt mode for dictionary lookup.
 
+The dictionary MUST BE alphabetically sorted and with unique
+keys.
+
 If the second argument is `-j`, the tool outputs a JSON
 representation of the generated transducer to stdout.
 

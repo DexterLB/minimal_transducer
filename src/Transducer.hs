@@ -298,6 +298,7 @@ indexedStates t = (Vector.fromList states, HashMap.fromList $ zip states [0..])
     where
         states = sortedStates t
 
+-- | returns all states of the transducer, starting with the start state
 sortedStates :: Trans -> [State]
 sortedStates t = check $ HashMap.lookup (start t) (states t)
     where
