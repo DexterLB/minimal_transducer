@@ -21,7 +21,7 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:     Minimal, Transducer, CompactTransducer, JsonTransducer
-  build-depends:       base >=4.9 && <4.10
+  build-depends:       base >=4.9
                      , unordered-containers >=0.2
                      , hashable >=1.2, text >=1.2
                      , conduit >=1.2, conduit-combinators >=1.1
@@ -33,7 +33,7 @@ executable minimal-transducer
   hs-source-dirs:      app
   main-is:             Main.hs
   ghc-options:         -O2 -threaded -rtsopts -with-rtsopts=-N
-  build-depends:       base >=4.9 && <4.10, minimal-transducer
+  build-depends:       base >=4.9, minimal-transducer
                      , unordered-containers >=0.2
                      , hashable >=1.2, text >=1.2
                      , conduit >=1.2, conduit-combinators >=1.1

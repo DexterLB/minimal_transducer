@@ -166,6 +166,15 @@ showTransLines t
     =  (showTransDataLines t)
     ++ (showVerifyEquivLines t)
 
+dotifyTrans :: Trans -> String
+dotifyTrans = unlines . dotifyTransLines
+
+dotifyTransLines :: Trans -> [String]
+dotifyTransLines (Trans {states, start})
+    = ["digraph trans {"]
+    ++ (map ("    " ++ ) (foldr (++) [] (map dotifyState (HashMap.toList states))))
+    ++ ["}"]
+
 showTransDataLines :: Trans -> [String]
 showTransDataLines Trans {states, start}
     =  ["transducer with start " ++ (show start)]
@@ -179,6 +188,24 @@ showStateLines (n, State {transition, final, output})
     ++ ["  outputs:"]
     ++ (map ("    " ++) (showMapLines output))
     ++ (showFinalLines final)
+
+dotifyState :: (Int, State) -> [String]
+dotifyState (n, State {transition, final, output})
+    =  [(show n) ++ " [label=\"" ++ (show n) ++ (showFinalOutput final) ++ "\"];"]
+    ++ (map
+        (dotifyTransition n)
+        (zipTransitions (State {transition, final, output}))
+       )
+
+dotifyTransition :: Int -> (Char, Int, Maybe Text) -> String
+dotifyTransition n (c, i, Just o) = (show n) ++ " -> " ++ (show i) ++ " [label=\"" ++ (c:":") ++ (T.unpack o) ++ "\"];"
+dotifyTransition n (c, i, Nothing) = (show n) ++ " -> " ++ (show i) ++ " [label=\"" ++ (c:"\"];")
+
+zipTransitions :: State -> [(Char, Int, Maybe Text)]
+zipTransitions (State {transition, final, output}) = map getTransition keys
+    where
+        keys = HashMap.keys transition
+        getTransition c = (c, transition HashMap.! c, HashMap.lookup c output)
 
 showVerifyEquivLines :: Trans -> [String]
 showVerifyEquivLines t
@@ -199,6 +226,10 @@ showFinalLines :: (Show o) => Maybe o -> [String]
 showFinalLines Nothing = []
 showFinalLines (Just output) = ["  final with output " ++ (show output)]
 
+showFinalOutput :: Maybe Text -> String
+showFinalOutput Nothing = ""
+showFinalOutput (Just output) = " -> " ++ (T.unpack output)
+
 transitionCount :: Trans -> Int
 transitionCount Trans {states} = sum $ HashMap.map (\s -> HashMap.size $ transition s) states
 
@@ -215,7 +246,7 @@ instance Hashable State where
 
         -- = hashWithSalt salt (transition, T.length <$> final, HashMap.size output)
         = hashWithSalt salt (transition, final, output)
-    
+
 
 
 -- **** conversion ****
@@ -232,8 +263,8 @@ toJsonTrans t = JT.Trans {
         (outputs, outputIndex) = indexedArray $ allOutputs t
         (alphabet, alphabetIndex) = indexedAlphabet t
 
-toJsonTransState :: Trans 
-                 -> HashMap State Int 
+toJsonTransState :: Trans
+                 -> HashMap State Int
                  -> HashMap Text Int
                  -> HashMap Char Int
                  -> State -> JT.State
@@ -241,7 +272,7 @@ toJsonTransState :: Trans
 toJsonTransState t stateIndex outputIndex alphabetIndex state
     = JT.State {
         final = finalIndexOutput outputIndex (final state),
-        transitions = HashMap.fromList 
+        transitions = HashMap.fromList
             $ map (toJsonTransTransition t stateIndex outputIndex alphabetIndex)
             $ transitionTuples
     }
@@ -290,10 +321,10 @@ allOutputs :: Trans -> [Text]
 allOutputs t = concat $ map allStateOutputs $ HashMap.elems $ states t
 
 allStateOutputs :: State -> [Text]
-allStateOutputs state = maybePrepend (final state) 
+allStateOutputs state = maybePrepend (final state)
                         $ HashMap.elems $ output state
 
-indexedStates :: Trans -> (Vector State, HashMap State Int)                        
+indexedStates :: Trans -> (Vector State, HashMap State Int)
 indexedStates t = (Vector.fromList states, HashMap.fromList $ zip states [0..])
     where
         states = sortedStates t
@@ -304,7 +335,7 @@ sortedStates t = check $ HashMap.lookup (start t) (states t)
     where
         check :: Maybe State -> [State]
         check Nothing = []
-        check (Just startState) = startState : (HashMap.elems 
+        check (Just startState) = startState : (HashMap.elems
             $ HashMap.delete (start t) (states t))
 
 data Void = Void Void

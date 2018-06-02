@@ -40,11 +40,13 @@ main = do
 
     let minimalT = finalise t
 
+    writeFile "/tmp/trans.dot" $ dotifyTrans minimalT
+
     useTrans args minimalT
 
 useTrans :: [String] -> Trans -> IO ()
 useTrans args t
-    | (length args < 2) || ((args !! 1) /= "-j") 
+    | (length args < 2) || ((args !! 1) /= "-j")
         = interact $ prompt t
     | otherwise = ByteString8.putStrLn $ jsonify t
 
@@ -52,11 +54,11 @@ jsonify :: Trans -> ByteString
 jsonify t = Aeson.encode $ toJsonTrans t
 
 prompt :: Trans -> String -> String
-prompt t = 
-    unlines . 
+prompt t =
+    unlines .
     ((
         "built transducer with "
-        ++ (show $ length $ states t) 
+        ++ (show $ length $ states t)
         ++ " states and "
         ++ (show $ transitionCount t)
         ++ " transitions."
@@ -75,7 +77,7 @@ linePrompt jt = (" -> " ++) . T.unpack . deMaybe . (JT.match jt) . T.pack
 
 splitLine :: Text -> (Text, Text)
 splitLine s = (
-                   T.takeWhile (not . isSpace) s, 
+                   T.takeWhile (not . isSpace) s,
         T.drop 1 $ T.dropWhile (not . isSpace) s
     )
 
