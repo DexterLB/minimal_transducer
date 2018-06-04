@@ -38,10 +38,10 @@ addWordI :: (Trans, Except)       -- ^ transducer, lastWord, lastPath
          -> (Trans, Except)       -- ^ newTransducer, newWord, newPath
 addWordI (!t, (!prevWord, !prevPath)) (!word, !output)
     | T.length suffix /= 0 = (finalT, (word, newPath))
-    | otherwise = error $ 
-                          "words " 
-                          ++ (T.unpack prevWord) 
-                          ++ " and " 
+    | otherwise = error $
+                          "words "
+                          ++ (T.unpack prevWord)
+                          ++ " and "
                           ++ (T.unpack word)
                           ++ " are out of order"
     where
@@ -51,7 +51,7 @@ addWordI (!t, (!prevWord, !prevPath)) (!word, !output)
 
         -- set any outputs we have in common with parts of the prefix
         (tWithOut, leftoverOutput) = addOutput newT prefixPath prefix output
-       
+
         -- set the last state of the current word's path to final (with no output)
         newT = setFinal tWithNewStates (last newPath) ""
 
@@ -65,7 +65,7 @@ addWordI (!t, (!prevWord, !prevPath)) (!word, !output)
 
 
         -- the "prefix" is the common prefix of the current and previous words
-        
+
         -- the "suffix" is the part of the new word that has no common
         -- prefix with any previous word
         --
@@ -94,7 +94,7 @@ addOutput t (p:q:wordPath) word output = addOutput newT (q:wordPath) w suffix
         tWithOutputPrefix = setOutput t p a commonPrefix
 
         (commonPrefix, currentSuffix, suffix) = lcprefixes currentOutput output
-        
+
         currentOutput   = outEmpty t p a
 
         a = T.head word
@@ -147,11 +147,11 @@ makePathAfter t n word = (newT, n : newPath)
         w = T.tail word
 
 -- | adds a new state after the given state with the given transition
-addState :: Trans 
+addState :: Trans
          -> Int             -- ^ the state from which we make a transition
          -> Char            -- ^ with which symbol
          -> (Trans, Int)
-addState t prevStateID a 
+addState t prevStateID a
     = (t', newStateID)
         where
             t' = addTransition prevStateID a newStateID $ t {
@@ -162,7 +162,8 @@ addState t prevStateID a
             newState = State {
                 transition = HashMap.fromList [],
                 final = Nothing,
-                output = HashMap.fromList []
+                output = HashMap.fromList [],
+                degree = 0
             }
 
             newStateID = lastState t + 1

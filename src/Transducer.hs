@@ -101,12 +101,15 @@ updateEquiv Trans {states, start, lastState} = Trans {
 -- **** Mutations ****
 
 addTransition :: Int -> Char -> Int -> Trans -> Trans
-addTransition from a to t = updateState t from f
+addTransition from a to t = updateState (updateState t to g) from f
     where
         f state = state {
                 transition = HashMap.insert a to (transition state),
                 output = bump a "" (output state)
             }
+        g state = state {
+            degree = (degree state) + 1
+        }
 
 bump :: (Eq k, Hashable k) => k -> v -> HashMap k v -> HashMap k v
 bump key newValue m
@@ -190,11 +193,11 @@ showStateLines (n, State {transition, final, output})
     ++ (showFinalLines final)
 
 dotifyState :: (Int, State) -> [String]
-dotifyState (n, State {transition, final, output})
-    =  [(show n) ++ " [label=\"" ++ (show n) ++ (showFinalOutput final) ++ "\"];"]
+dotifyState (n, State {transition, final, output, degree})
+    =  [(show n) ++ " [label=\"" ++ (show n) ++ (showFinalOutput final) ++ " [" ++ (show degree) ++ "]\"];"]
     ++ (map
         (dotifyTransition n)
-        (zipTransitions (State {transition, final, output}))
+        (zipTransitions (State {transition, final, output, degree}))
        )
 
 dotifyTransition :: Int -> (Char, Int, Maybe Text) -> String
@@ -345,8 +348,12 @@ data Void = Void Void
 data State = State {
     transition :: HashMap Char Int,
     final :: Maybe Text,
-    output :: HashMap Char Text
-} deriving (Eq)
+    output :: HashMap Char Text,
+    degree :: Int
+}
+
+instance Eq State where
+    x == y = (transition x, final x, output x) == (transition y, final y, output y)
 
 data Trans = Trans {
     states :: HashMap Int State,
@@ -370,7 +377,7 @@ emptyTrans :: Trans
 emptyTrans = Trans {
     start = 1,
     states = HashMap.fromList [
-        (1, State (HashMap.empty) Nothing (HashMap.empty))
+        (1, State (HashMap.empty) Nothing (HashMap.empty) 0)
     ],
     equiv = HashMap.fromList [],
     lastState = 1

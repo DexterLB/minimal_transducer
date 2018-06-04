@@ -40,7 +40,7 @@ main = do
 
     let minimalT = finalise t
 
-    writeFile "/tmp/trans.dot" $ dotifyTrans minimalT
+    -- writeFile "/tmp/trans.dot" $ dotifyTrans minimalT
 
     useTrans args minimalT
 
