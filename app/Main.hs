@@ -40,13 +40,23 @@ main = do
 
     let minimalT = finalise t
 
-    writeFile "/tmp/before.dot" $ dotifyTrans minimalT
-
-    let (unT, "", _) = unminimisePrefix minimalT "foo"
-    writeFile "/tmp/after.dot" $ dotifyTrans unT
 
 
-    useTrans args minimalT
+    newT <- runResourceT $
+              (Co.sourceFile  (args !! 1) )
+            $$ Co.decodeUtf8
+            .| Co.linesUnbounded
+            .| Co.map splitLine
+            .| Co.foldl addWordU minimalT
+    -- writeFile "/tmp/before.dot" $ dotifyTrans minimalT
+
+    -- let newT = addWordU minimalT ("fo", "oqla")
+    -- writeFile "/tmp/after.dot" $ dotifyTrans newT
+
+
+    useTrans args newT
+
+    -- useTrans args minimalT
 
 useTrans :: [String] -> Trans -> IO ()
 useTrans args t

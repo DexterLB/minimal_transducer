@@ -50,13 +50,13 @@ addWordI (!t, (!prevWord, !prevPath)) (!word, !output)
     where
         -- set the remaining output to the first transition that's only part
         -- of the new word (e.g. the first element of the suffix)
-        finalT = setOutput tWithOut (head suffixPath) (T.head suffix) leftoverOutput
-
-        -- set any outputs we have in common with parts of the prefix
-        (tWithOut, leftoverOutput) = addOutput newT prefixPath prefix output
+        finalT = setOutput newT (head suffixPath) (T.head suffix) leftoverOutput
 
         -- set the last state of the current word's path to final (with no output)
-        newT = setFinal tWithNewStates (last newPath) ""
+        newT = setFinal tWithOut (last newPath) ""
+
+        -- set any outputs we have in common with parts of the prefix
+        (tWithOut, leftoverOutput) = addOutput tWithNewStates prefixPath prefix output
 
         -- generate a path for the new word in the transducer
         newPath = prefixPath ++ (tail suffixPath)
@@ -79,6 +79,34 @@ addWordI (!t, (!prevWord, !prevPath)) (!word, !output)
 
         prefixLength                    = T.length prefix
         (prefix, prevSuffix, suffix)    = lcprefixes prevWord word
+
+addWordU :: Trans       -- ^ transducer, lastWord, lastPath
+         -> (Text, Text)          -- ^ newWord, output
+         -> Trans       -- ^ newTransducer, newWord, newPath
+addWordU !t (!word, !output)
+    | T.length suffix /= 0 = finalise (finalT, (word, newPath))
+    | otherwise = finalise (newTNoSuffix, (word, newPath))
+    where
+        -- set the remaining output to the first transition that's only part
+        -- of the new word (e.g. the first element of the suffix)
+        finalT = setOutput newT (head suffixPath) (T.head suffix) leftoverOutput
+
+        -- set the last state of the current word's path to final (with no output)
+        newT = setFinal tWithOut (last newPath) ""
+
+        newTNoSuffix = setFinal tWithOut (last newPath) leftoverOutput
+
+        -- set any outputs we have in common with parts of the prefix
+        (tWithOut, leftoverOutput) = addOutput tWithNewStates prefixPath prefix output
+
+        -- generate a path for the new word in the transducer
+        newPath = prefixPath ++ (tail suffixPath)
+        (tWithNewStates, suffixPath) = makePathAfter minT (last prefixPath) suffix
+
+        -- minimise the suffix of the previous word because it diverges
+        -- with the current word
+
+        (minT, (prefix, prefixPath), suffix) = unminimisePrefix t word
 
 
 -- | attach the given output to the word with the given path
@@ -107,14 +135,16 @@ addOutput t (p:q:wordPath) word output = addOutput newT (q:wordPath) w suffix
 minimiseWord :: Trans -> Text -> Trans
 minimiseWord t w = minimisePath t w (path t (start t) w)
 
-unminimisePrefix :: Trans -> Text -> (Trans, Text, [(Int, Char, Int)])
-unminimisePrefix t w = (newTrans, rest, newPath)
+unminimisePrefix :: Trans -> Text -> (Trans, (Text, [Int]), Text)
+unminimisePrefix t w = (newTrans, (unzipPath (start t) newPath), rest)
     where
         (newTrans, newPath) = unminimiseZippedPath t path
         (path, rest) = traverseZipped t w
 
 unminimiseZippedPath :: Trans -> [(Int, Char, Int)] -> (Trans, [(Int, Char, Int)])
-unminimiseZippedPath t l = unminimiseZippedPath' t l []
+unminimiseZippedPath t l = (t', reverse l')
+    where
+        (t', l') = unminimiseZippedPath' t l []
 
 unminimiseZippedPath' :: Trans -> [(Int, Char, Int)] -> [(Int, Char, Int)] -> (Trans, [(Int, Char, Int)])
 unminimiseZippedPath' t [] p = (t, p)
@@ -131,7 +161,18 @@ unminimiseZippedPath' t [(m, a, n)] p = (t', ((m, a, n'):p))
 minimisePath :: Trans -> Text -> [Int] -> Trans
 minimisePath t word wordPath = minimiseZippedPath t zipped
     where
-        zipped = zipWith (\(x, y) z -> (x, y, z)) (zip wordPath (T.unpack word)) (tail wordPath)
+        zipped = zipPath word wordPath
+
+zipPath :: Text -> [Int] -> [(Int, Char, Int)]
+zipPath word wordPath = zipWith
+    (\(x, y) z -> (x, y, z))
+    (zip wordPath (T.unpack word)) (tail wordPath)
+
+unzipPath :: Int -> [(Int, Char, Int)] -> (Text, [Int])
+unzipPath s path = (T.pack (map with path), s:(map to path))
+    where
+        with (_, a, _) = a
+        to (_, _, n) = n
 
 minimiseZippedPath :: Trans -> [(Int, Char, Int)] -> Trans
 minimiseZippedPath t = foldr minimiseTransition t
