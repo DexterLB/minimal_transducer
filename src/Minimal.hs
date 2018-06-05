@@ -189,7 +189,19 @@ addState :: Trans
          -> Int             -- ^ the state from which we make a transition
          -> Char            -- ^ with which symbol
          -> (Trans, Int)
-addState t prevStateID a
+addState t n a = addGivenState t n a $ State {
+        transition = HashMap.empty,
+        final = Nothing,
+        output = HashMap.empty,
+        degree = 0
+    }
+
+addGivenState :: Trans
+         -> Int             -- ^ the state from which we make a transition
+         -> Char            -- ^ with which symbol
+         -> State
+         -> (Trans, Int)
+addGivenState t prevStateID a newState
     = (t', newStateID)
         where
             t' = addTransition prevStateID a newStateID $ t {
@@ -197,19 +209,20 @@ addState t prevStateID a
                 lastState = newStateID
             }
 
-            newState = State {
-                transition = HashMap.fromList [],
-                final = Nothing,
-                output = HashMap.fromList [],
-                degree = 0
-            }
-
             newStateID = lastState t + 1
 
+
+
 unminimiseTransition :: Trans -> (Int, Char, Int) -> (Trans, Int)
-unminimiseTransition t (m, c, n) = traceShow (m, c, n) (t, 40 + n)
-    -- | isConvergent t m = (t, n)
-    -- | otherwise = undefined
+unminimiseTransition t (m, a, n)
+    | isConvergent t n = addGivenState t' m a ((state t n) { degree = 0 })
+    | otherwise = (t, n)
+    where
+        t' = delTransition m a n t
+
+isConvergent :: Trans -> Int -> Bool
+isConvergent t n = degree (state t n) > 1
+
 -- | checks if there's a state which is equivalent to the target state.
 -- | If there is, the target state is deleted and the transition is pointed
 -- | at its equivalent state

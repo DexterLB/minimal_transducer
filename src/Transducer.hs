@@ -111,6 +111,16 @@ addTransition from a to t = updateState (updateState t to g) from f
             degree = (degree state) + 1
         }
 
+delTransition :: Int -> Char -> Int -> Trans -> Trans
+delTransition from a to t = updateState (updateState t to g) from f
+    where
+        f state = state {
+                transition = HashMap.delete a (transition state)
+            }
+        g state = state {
+            degree = (degree state) - 1
+        }
+
 bump :: (Eq k, Hashable k) => k -> v -> HashMap k v -> HashMap k v
 bump key newValue m
     | HashMap.member key m  = m
@@ -118,9 +128,8 @@ bump key newValue m
 
 delState :: Int -> Trans -> Trans
 delState n t = t {
-        states = HashMap.delete n (states t)
---        equiv = HashMap.delete ((states t) HashMap.! n) (equiv t)
---        we'll only be deleting states that aren't in equivalence
+        states = HashMap.delete n (states t),
+        equiv = HashMap.delete ((states t) HashMap.! n) (equiv t)
     }
 
 
