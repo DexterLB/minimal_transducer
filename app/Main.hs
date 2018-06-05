@@ -42,16 +42,22 @@ main = do
 
 
 
-    newT <- runResourceT $
-              (Co.sourceFile  (args !! 1) )
-            $$ Co.decodeUtf8
-            .| Co.linesUnbounded
-            .| Co.map splitLine
-            .| Co.foldl addWordU minimalT
+    newT <-
+        case length args of
+            2 -> runResourceT $
+                (Co.sourceFile  (args !! 1) )
+                $$ Co.decodeUtf8
+                .| Co.linesUnbounded
+                .| Co.map splitLine
+                .| Co.foldl addWordU minimalT
+            1 -> pure minimalT
+            _ -> undefined
+
+
     -- writeFile "/tmp/before.dot" $ dotifyTrans minimalT
 
     -- let newT = addWordU minimalT ("fo", "oqla")
-    -- writeFile "/tmp/after.dot" $ dotifyTrans newT
+    writeFile "/tmp/bla.dot" $ dotifyTrans newT
 
 
     useTrans args newT

@@ -121,6 +121,15 @@ delTransition from a to t = updateState (updateState t to g) from f
             degree = (degree state) - 1
         }
 
+delTransitionsFor :: Trans -> Int -> Trans
+delTransitionsFor t n = foldr f t outgoing
+    where
+        f :: (Int, Char, Int) -> Trans -> Trans
+        f (m, a, n) t = delTransition m a n t
+
+        outgoing = map (\(a, m) -> (m, a, n)) $ HashMap.toList (transition $ state t n)
+
+
 bump :: (Eq k, Hashable k) => k -> v -> HashMap k v -> HashMap k v
 bump key newValue m
     | HashMap.member key m  = m
