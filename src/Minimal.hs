@@ -15,6 +15,9 @@ import Data.Foldable (foldl')
 import Data.Text (Text)
 import qualified Data.Text as T
 
+import Data.List (mapAccumR)
+import Debug.Trace
+
 type Except = (Text, [Int]) -- word and path for which the transducer is not minimal
 
 -- | constructs a minimal transducer with the given dictionary.
@@ -104,6 +107,25 @@ addOutput t (p:q:wordPath) word output = addOutput newT (q:wordPath) w suffix
 minimiseWord :: Trans -> Text -> Trans
 minimiseWord t w = minimisePath t w (path t (start t) w)
 
+unminimisePrefix :: Trans -> Text -> (Trans, Text, [(Int, Char, Int)])
+unminimisePrefix t w = (newTrans, rest, newPath)
+    where
+        (newTrans, newPath) = unminimiseZippedPath t path
+        (path, rest) = traverseZipped t w
+
+unminimiseZippedPath :: Trans -> [(Int, Char, Int)] -> (Trans, [(Int, Char, Int)])
+unminimiseZippedPath t l = unminimiseZippedPath' t l []
+
+unminimiseZippedPath' :: Trans -> [(Int, Char, Int)] -> [(Int, Char, Int)] -> (Trans, [(Int, Char, Int)])
+unminimiseZippedPath' t [] p = (t, p)
+unminimiseZippedPath' t ((m, a, n):(_, b, q):path) p = unminimiseZippedPath' t' ((n', b, q):path) ((m, a, n'):p)
+    where
+        (t', n') = unminimiseTransition t (m, a, n)
+unminimiseZippedPath' t [(m, a, n)] p = (t', ((m, a, n'):p))
+    where
+        (t', n') = unminimiseTransition t (m, a, n)
+
+
 -- | if the given transducer is minimal except for (pref . word), it now becomes
 -- | minimal except for pref.
 minimisePath :: Trans -> Text -> [Int] -> Trans
@@ -146,6 +168,22 @@ makePathAfter t n word = (newT, n : newPath)
         a = T.head word
         w = T.tail word
 
+-- | traverse from the start with the given word, returning the path travelled and the remaining suffix
+traverseZipped :: Trans -> Text -> ([(Int, Char, Int)], Text)
+traverseZipped t w = traverseZippedFrom t (start t) w
+
+traverseZippedFrom :: Trans -> Int -> Text -> ([(Int, Char, Int)], Text)
+traverseZippedFrom t n "" = ([], "")
+traverseZippedFrom t n word = f (next t n a)
+    where
+        f (Just m) = ((n, a, m) : rest, suff)
+            where
+                (rest, suff) = traverseZippedFrom t m w
+        f Nothing  = ([], word)
+
+        a = T.head word
+        w = T.tail word
+
 -- | adds a new state after the given state with the given transition
 addState :: Trans
          -> Int             -- ^ the state from which we make a transition
@@ -168,6 +206,10 @@ addState t prevStateID a
 
             newStateID = lastState t + 1
 
+unminimiseTransition :: Trans -> (Int, Char, Int) -> (Trans, Int)
+unminimiseTransition t (m, c, n) = traceShow (m, c, n) (t, 40 + n)
+    -- | isConvergent t m = (t, n)
+    -- | otherwise = undefined
 -- | checks if there's a state which is equivalent to the target state.
 -- | If there is, the target state is deleted and the transition is pointed
 -- | at its equivalent state

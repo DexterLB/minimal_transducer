@@ -40,7 +40,11 @@ main = do
 
     let minimalT = finalise t
 
-    -- writeFile "/tmp/trans.dot" $ dotifyTrans minimalT
+    writeFile "/tmp/before.dot" $ dotifyTrans minimalT
+
+    let (unT, "", _) = unminimisePrefix minimalT "foo"
+    writeFile "/tmp/after.dot" $ dotifyTrans unT
+
 
     useTrans args minimalT
 
