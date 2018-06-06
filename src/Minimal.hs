@@ -256,9 +256,12 @@ addGivenState t prevStateID a newState
 
 unminimiseTransition :: Trans -> (Int, Char, Int) -> (Trans, Int)
 unminimiseTransition t (m, a, n)
-    | isConvergent t n = addGivenState t' m a ((state t n) { degree = 0 })
+    | isConvergent t n =
+        ( (bumpDegrees t'' (HashMap.elems $ transition $ state t'' newState))
+        , newState )
     | otherwise = (t, n)
     where
+        (t'', newState) = addGivenState t' m a ((state t n) { degree = 0 })
         t' = delTransition m a n t
 
 isConvergent :: Trans -> Int -> Bool

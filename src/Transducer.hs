@@ -107,31 +107,34 @@ addTransition from a to t
     | (Just oldTo) <- HashMap.lookup a (transition (state t from))
         = updateState (
             updateState (
-              updateState (t) oldTo h
-            ) to g
+              updateState (t) oldTo (h oldTo)
+            ) to (g (from, a, to))
           ) from f
-    | otherwise = updateState (updateState t to g) from f
+    | otherwise = updateState (updateState t to (g (from, a, to))) from f
     where
         f state = state {
                 transition = HashMap.insert a to (transition state),
                 output = bump a "" (output state)
             }
-        g state = state {
+        g i state = state {
             degree = (degree state) + 1
         }
 
-        h state = state {
+        h i state = state {
             degree = (degree state) - 1
         }
 
 
 delTransition :: Int -> Char -> Int -> Trans -> Trans
-delTransition from a to t = updateState (updateState t to g) from f
+delTransition from a to t
+    | HashMap.lookup a (transition $ state t from) == Just to
+         = updateState (updateState t to (g (from, a, to))) from f
+    | otherwise = undefined -- invariant
     where
         f state = state {
                 transition = HashMap.delete a (transition state)
             }
-        g state = state {
+        g i state = state {
             degree = (degree state) - 1
         }
 
@@ -143,6 +146,15 @@ delTransitionsFor t n = foldr f t outgoing
 
         outgoing = map (\(a, m) -> (n, a, m)) $ HashMap.toList (transition $ state t n)
 
+bumpDegrees :: Trans -> [Int] -> Trans
+bumpDegrees t = foldr bumpDegree t
+
+bumpDegree :: Int -> Trans -> Trans
+bumpDegree n t = updateState t n f
+    where
+        f state = state {
+            degree = degree state + 1
+        }
 
 bump :: (Eq k, Hashable k) => k -> v -> HashMap k v -> HashMap k v
 bump key newValue m
