@@ -11,7 +11,7 @@ import Data.Char (isSpace)
 import System.Environment (getArgs)
 
 
-import Data.Conduit (runConduit, (.|) , ($$) )
+import Data.Conduit (runConduitRes, (.|) )
 import Control.Monad.Trans.Resource (runResourceT)
 import Control.Monad (foldM)
 import qualified Data.Conduit as C
@@ -58,9 +58,9 @@ processArg t "info" = do
 
 
 processDic :: a -> (a -> (Text, Text) -> a) -> String -> IO a
-processDic t f file = runResourceT $
+processDic t f file = runConduitRes $
         (Co.sourceFile  file )
-    $$ Co.decodeUtf8
+    .| Co.decodeUtf8
     .| Co.linesUnbounded
     .| Co.map splitLine
     .| Co.foldl f t
