@@ -276,7 +276,7 @@ minimiseTransition (from, a, to) t = checkEquiv toEquiv
         checkEquiv (Just n)
             | n == to   = t   -- state is already part of the minimal path
             | otherwise = t' {
-                    equiv = HashMap.insert (state t n) n (equiv t')
+                    equiv = HashMap.insert (state t' n) n (equiv t')
                 }
             where
                 t' = (addTransition from a n $ delState to t)

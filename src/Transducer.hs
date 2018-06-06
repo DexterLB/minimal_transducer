@@ -19,6 +19,8 @@ import qualified Data.List.Unique as Uniq
 
 import qualified JsonTransducer as JT
 
+import Debug.Trace
+
 
 -- **** traversing ****
 
@@ -101,7 +103,14 @@ updateEquiv Trans {states, start, lastState} = Trans {
 -- **** Mutations ****
 
 addTransition :: Int -> Char -> Int -> Trans -> Trans
-addTransition from a to t = updateState (updateState t to g) from f
+addTransition from a to t
+    | (Just oldTo) <- HashMap.lookup a (transition (state t from))
+        = updateState (
+            updateState (
+              updateState (t) oldTo h
+            ) to g
+          ) from f
+    | otherwise = updateState (updateState t to g) from f
     where
         f state = state {
                 transition = HashMap.insert a to (transition state),
@@ -110,6 +119,11 @@ addTransition from a to t = updateState (updateState t to g) from f
         g state = state {
             degree = (degree state) + 1
         }
+
+        h state = state {
+            degree = (degree state) - 1
+        }
+
 
 delTransition :: Int -> Char -> Int -> Trans -> Trans
 delTransition from a to t = updateState (updateState t to g) from f
@@ -127,7 +141,7 @@ delTransitionsFor t n = foldr f t outgoing
         f :: (Int, Char, Int) -> Trans -> Trans
         f (m, a, n) t = delTransition m a n t
 
-        outgoing = map (\(a, m) -> (m, a, n)) $ HashMap.toList (transition $ state t n)
+        outgoing = map (\(a, m) -> (n, a, m)) $ HashMap.toList (transition $ state t n)
 
 
 bump :: (Eq k, Hashable k) => k -> v -> HashMap k v -> HashMap k v
@@ -136,10 +150,17 @@ bump key newValue m
     | otherwise             = HashMap.insert key newValue m
 
 delState :: Int -> Trans -> Trans
-delState n t = t {
-        states = HashMap.delete n (states t),
-        equiv = HashMap.delete ((states t) HashMap.! n) (equiv t)
+delState n t = t' {
+        states = HashMap.delete n (states t'),
+        equiv = equiv'
     }
+    where
+        equiv'
+            | HashMap.lookup targetState (equiv t') == Just n
+                = HashMap.delete targetState (equiv t')
+            | otherwise = equiv t'
+        targetState = state t' n
+        t' = (delTransitionsFor t n)
 
 
 prependToOutputs :: Trans -> Int -> Text -> Trans
@@ -167,9 +188,20 @@ setOutput t n a out = updateState t n f
 
 -- | updates a state both in the state table
 updateState :: Trans -> Int -> (State -> State) -> Trans
-updateState t n f = t {
-            states = HashMap.adjust f n (states t)
+updateState t n f
+    | not $ HashMap.member n (states t) = t
+    | otherwise = t {
+            states = HashMap.insert n newState (states t),
+            equiv = equiv'
         }
+    where
+        oldState = state t n
+        newState = f oldState
+        equiv'
+            | oldState /= newState && (HashMap.lookup oldState (equiv t)) == (Just n)
+                = HashMap.insert newState n (HashMap.delete oldState (equiv t))
+
+            | otherwise = equiv t
     -- equiv doesn't need updating because updateState is only called
     -- before inserting a state in equiv
 

@@ -58,6 +58,7 @@ main = do
 
     -- let newT = addWordU minimalT ("fo", "oqla")
     writeFile "/tmp/bla.dot" $ dotifyTrans newT
+    -- writeFile "/tmp/before.dot" $ dotifyTrans $ fst t
 
 
     useTrans args newT
@@ -67,11 +68,18 @@ main = do
 useTrans :: [String] -> Trans -> IO ()
 useTrans args t
     | (length args < 2) || ((args !! 1) /= "-j")
-        = interact $ prompt t
+        = interact $ noPrompt t
     | otherwise = ByteString8.putStrLn $ jsonify t
 
 jsonify :: Trans -> ByteString
 jsonify t = Aeson.encode $ toJsonTrans t
+
+noPrompt :: Trans -> String -> String
+noPrompt t _ =  "build transducer with "
+        ++ (show $ length $ states t)
+        ++ " states and "
+        ++ (show $ transitionCount t)
+        ++ " transitions.\n"
 
 prompt :: Trans -> String -> String
 prompt t =
