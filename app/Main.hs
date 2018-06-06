@@ -26,6 +26,8 @@ import qualified Data.ByteString.Lazy.Char8 as ByteString8
 
 import qualified Data.Aeson as Aeson
 
+import qualified Data.HashMap.Strict as HashMap
+
 -- | read a dictionary file (the first argument), and then read words from
 -- | stdin and print their outputs to stdout
 main :: IO ()
@@ -54,6 +56,9 @@ processArg t "prompt" = do
 processArg t "info" = do
     putStr $ info t
     return t
+processArg t "dump_outputs" = do
+    putStrLn $ unlines $ map (show . HashMap.elems . output) $ HashMap.elems $ states t
+    return t
 processArg t ('d':'o':'t':':':filename) = do
     writeFile filename $ dotifyTrans t
     return t
@@ -80,6 +85,7 @@ info t =  "build transducer with "
         ++ " states and "
         ++ (show $ transitionCount t)
         ++ " transitions.\n"
+        ++ (unlines $ showVerifyEquivLines t)
 
 prompt :: Trans -> String -> String
 prompt t =

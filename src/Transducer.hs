@@ -89,7 +89,10 @@ next t n a = HashMap.lookup a (transition $ state t n)
 
 -- | returns the state with the given id
 state :: Trans -> Int -> State
-state (Trans {states}) n = states HashMap.! n
+-- state (Trans {states}) n = states HashMap.! n
+state (Trans {states}) n
+    | (Just s) <- HashMap.lookup n states = s
+    | otherwise = error $ "state " ++ (show n) ++ " not found"
 
 -- | updates the equivalence set to reflect the actual state, discarding the old one
 updateEquiv :: Trans -> Trans
@@ -183,6 +186,34 @@ prependToOutputs t n out = updateState t n f
             output = HashMap.map (out `T.append`) (output state),
             final = (out `T.append`) <$> (final state)
         }
+
+appendToOutput :: Trans -> Int -> Char -> Text -> Trans
+appendToOutput t n a suffix = updateState t n f
+    where
+        f state = state {
+            output = HashMap.adjust (\x -> T.append x suffix) a (output state)
+        }
+
+commonOutputPrefix :: Trans -> Int -> Text
+commonOutputPrefix t n
+    | outputs == [] = ""
+    | otherwise = foldr1 lcp outputs
+    where
+        outputs
+            | (Just out) <- final s = out : transitionOutputs
+            | otherwise             = transitionOutputs
+        transitionOutputs = HashMap.elems $ output s
+        s = state t n
+
+removeOutputPrefix :: Trans -> Int -> Text -> Trans
+removeOutputPrefix t n prefix = updateState t n f
+    where
+        f state = state {
+            output = HashMap.map (removePrefix prefix) (output state),
+            final = (removePrefix prefix) <$> (final state)
+        }
+
+
 
 
 setFinal :: Trans -> Int -> Text -> Trans
@@ -300,8 +331,8 @@ showVerifyEquivLines t
     | otherwise     = ["  WARN: transducer has wrong equivalence set"]
 
 verifyEquiv :: Trans -> Bool
-verifyEquiv Trans {states, equiv} = (
-        HashMap.fromList $ map (\(x, y) -> (y, x)) $ (HashMap.toList states)
+verifyEquiv Trans {states, equiv, start} = (
+        HashMap.fromList $ map (\(x, y) -> (y, x)) $ filter (\(x, _) -> x /= start) (HashMap.toList states)
     ) == equiv
 
 showMapLines :: (Show k, Show v) => HashMap k v -> [String]
@@ -466,3 +497,23 @@ emptyTrans = Trans {
     equiv = HashMap.fromList [],
     lastState = 1
 }
+
+-- **** utils ****
+
+removePrefix :: Text -> Text -> Text
+removePrefix prefix t
+    | (Just suffix) <- T.stripPrefix prefix t = suffix
+    | otherwise = undefined
+
+-- | longest common prefix
+lcp :: Text -> Text -> Text
+lcp a b = fst3 (lcprefixes a b)
+
+lcprefixes :: Text -> Text -> (Text, Text, Text)
+lcprefixes a b = couldBeEmpty (T.commonPrefixes a b)
+    where
+        couldBeEmpty Nothing            = (T.empty, a, b)
+        couldBeEmpty (Just prefixes)    = prefixes
+
+fst3 :: (a, b, c) -> a
+fst3 (x, _, _) = x

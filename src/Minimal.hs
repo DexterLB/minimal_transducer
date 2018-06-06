@@ -115,9 +115,13 @@ delWordU !t !word
     | suffix /= "" = t
     | final (state minT lastState) == Nothing = t
     | prefix /= word = error "prefix is not the word but the suffix is empty??"
-    | otherwise = finalise (newT, unzipPath (start newT) zippedLeftPath)
+    | otherwise = finalise (finalT, unzipPath (start finalT) zippedLeftPath)
+    -- | otherwise = finalT
     where
-        (newT, zippedLeftPath) = trim (unFinal minT lastState) (reverse zippedPrefixPath)
+        finalT = foldr pullOutputs newT zippedLeftPath
+        (newT, zippedLeftPath) = trim (unFinal minT lastState) (reversedZippedPrefixPath)
+
+        reversedZippedPrefixPath = reverse zippedPrefixPath
 
         lastState = last prefixPath
         (prefix, prefixPath) = (unzipPath (start minT) zippedPrefixPath)
@@ -132,6 +136,11 @@ trim t ((prev, a, n):rest)
         t' = delTransition prev a n t
 trim t [] = (t, [])
 
+pullOutputs :: (Int, Char, Int) -> Trans -> Trans
+pullOutputs (from, a, to) t = appendToOutput t' from a commonPrefix
+    where
+        t' = removeOutputPrefix t to commonPrefix
+        commonPrefix = commonOutputPrefix t to
 
 -- | attach the given output to the word with the given path
 addOutput :: Trans
@@ -314,17 +323,3 @@ minimiseTransition (from, a, to) t = checkEquiv toEquiv
 
 emptyExcept :: Trans -> (Trans, Except)
 emptyExcept t = (t, ((T.pack ""), [start t]))
--- **** utils ****
-
--- | longest common prefix
-lcp :: Text -> Text -> Text
-lcp a b = fst3 (lcprefixes a b)
-
-lcprefixes :: Text -> Text -> (Text, Text, Text)
-lcprefixes a b = couldBeEmpty (T.commonPrefixes a b)
-    where
-        couldBeEmpty Nothing            = (T.empty, a, b)
-        couldBeEmpty (Just prefixes)    = prefixes
-
-fst3 :: (a, b, c) -> a
-fst3 (x, _, _) = x
