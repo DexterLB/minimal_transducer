@@ -13,6 +13,7 @@ import System.Environment (getArgs)
 
 import Data.Conduit (runConduit, (.|) , ($$) )
 import Control.Monad.Trans.Resource (runResourceT)
+import Control.Monad (foldM)
 import qualified Data.Conduit as C
 import qualified Data.Conduit.Combinators as Co
 
@@ -31,51 +32,47 @@ main :: IO ()
 main = do
     args <- getArgs
 
-    t <- runResourceT $
-              (Co.sourceFile  (args !! 0) )
-            $$ Co.decodeUtf8
-            .| Co.linesUnbounded
-            .| Co.map splitLine
-            .| Co.foldl addWordI emptyExcept
+    foldM processArg emptyTrans args
 
-    let minimalT = finalise t
+    return ()
 
 
+processArg :: Trans -> String -> IO Trans
+processArg t ('j':'s':'o':'n':':':filename) = do
+    ByteString8.writeFile filename $ jsonify t
+    return t
+processArg t ('s':'o':'r':'t':'e':'d':':':dic) = do
+    result <- processDic (emptyExcept t) addWordI dic
+    return $ finalise result
+processArg t ('a':'d':'d':':':dic) = processDic t addWordU dic
+processArg t ('d':'e':'l':':':dic) = processDic t del dic
+    where
+        del t (word, _) = delWordU t word
+processArg t "prompt" = do
+    doPrompt t
+    return t
+processArg t "info" = do
+    putStr $ info t
+    return t
 
-    newT <-
-        case length args of
-            2 -> runResourceT $
-                (Co.sourceFile  (args !! 1) )
-                $$ Co.decodeUtf8
-                .| Co.linesUnbounded
-                .| Co.map splitLine
-                .| Co.foldl addWordU minimalT
-            1 -> pure minimalT
-            _ -> undefined
 
 
-    -- writeFile "/tmp/before.dot" $ dotifyTrans minimalT
+processDic :: a -> (a -> (Text, Text) -> a) -> String -> IO a
+processDic t f file = runResourceT $
+        (Co.sourceFile  file )
+    $$ Co.decodeUtf8
+    .| Co.linesUnbounded
+    .| Co.map splitLine
+    .| Co.foldl f t
 
-    -- let newT = addWordU minimalT ("fo", "oqla")
-    writeFile "/tmp/bla.dot" $ dotifyTrans newT
-    -- writeFile "/tmp/before.dot" $ dotifyTrans $ fst t
-
-
-    useTrans args newT
-
-    -- useTrans args minimalT
-
-useTrans :: [String] -> Trans -> IO ()
-useTrans args t
-    | (length args < 2) || ((args !! 1) /= "-j")
-        = interact $ noPrompt t
-    | otherwise = ByteString8.putStrLn $ jsonify t
+doPrompt :: Trans -> IO ()
+doPrompt = interact . prompt
 
 jsonify :: Trans -> ByteString
 jsonify t = Aeson.encode $ toJsonTrans t
 
-noPrompt :: Trans -> String -> String
-noPrompt t _ =  "build transducer with "
+info :: Trans -> String
+info t =  "build transducer with "
         ++ (show $ length $ states t)
         ++ " states and "
         ++ (show $ transitionCount t)
@@ -85,13 +82,7 @@ prompt :: Trans -> String -> String
 prompt t =
     unlines .
     ((
-        "built transducer with "
-        ++ (show $ length $ states t)
-        ++ " states and "
-        ++ (show $ transitionCount t)
-        ++ " transitions."
-    ) :) .
-    ((
+        info t ++
         "converted transducer to JsonTransducer with "
         ++ (show $ length $ JT.states jt)
         ++ " states."

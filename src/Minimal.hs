@@ -23,7 +23,7 @@ type Except = (Text, [Int]) -- word and path for which the transducer is not min
 -- | constructs a minimal transducer with the given dictionary.
 -- | Keys must be sorted.
 minimalTransducer :: [(Text, Text)] -> Trans
-minimalTransducer inp = finalise $ addWords emptyExcept inp
+minimalTransducer inp = finalise $ addWords (emptyExcept emptyTrans) inp
 
 -- | perform final minimisation of a transducer minimal except for word
 finalise :: (Trans, Except) -> Trans
@@ -105,8 +105,32 @@ addWordU !t (!word, !output)
 
         -- minimise the suffix of the previous word because it diverges
         -- with the current word
+        (prefix, prefixPath) = (unzipPath (start t) zippedPrefixPath)
+        (minT, zippedPrefixPath, suffix) = unminimisePrefix t word
 
-        (minT, (prefix, prefixPath), suffix) = unminimisePrefix t word
+delWordU :: Trans
+         -> Text
+         -> Trans
+delWordU !t !word
+    | suffix /= "" = traceShow ("no_such_prefix", word) t
+    | final (state t lastState) == Nothing = traceShow ("no_such_word", word) t
+    | prefix /= word = error "prefix is not the word but the suffix is empty??"
+    | otherwise = finalise (newT, unzipPath (start newT) zippedLeftPath)
+    where
+        (newT, zippedLeftPath) = trim (unFinal minT lastState) (reverse zippedPrefixPath)
+
+        lastState = last prefixPath
+        (prefix, prefixPath) = (unzipPath (start minT) zippedPrefixPath)
+        (minT, zippedPrefixPath, suffix) = unminimisePrefix t word
+
+trim :: Trans -> [(Int, Char, Int)] -> (Trans, [(Int, Char, Int)])
+trim t ((prev, a, n):rest)
+    | final (state t n) == Nothing && HashMap.size (transition (state t n)) == 0
+        = trim (delState n t') rest
+    | otherwise = (t, reverse rest)
+    where
+        t' = delTransition prev a n t
+trim t [] = (t, [])
 
 
 -- | attach the given output to the word with the given path
@@ -135,8 +159,8 @@ addOutput t (p:q:wordPath) word output = addOutput newT (q:wordPath) w suffix
 minimiseWord :: Trans -> Text -> Trans
 minimiseWord t w = minimisePath t w (path t (start t) w)
 
-unminimisePrefix :: Trans -> Text -> (Trans, (Text, [Int]), Text)
-unminimisePrefix t w = (newTrans, (unzipPath (start t) newPath), rest)
+unminimisePrefix :: Trans -> Text -> (Trans, [(Int, Char, Int)], Text)
+unminimisePrefix t w = (newTrans, newPath , rest)
     where
         (newTrans, newPath) = unminimiseZippedPath t path
         (path, rest) = traverseZipped t w
@@ -286,8 +310,8 @@ minimiseTransition (from, a, to) t = checkEquiv toEquiv
 
         toEquiv = HashMap.lookup ((states t) HashMap.! to) (equiv t)
 
-emptyExcept :: (Trans, Except)
-emptyExcept = (emptyTrans, ((T.pack ""), [start emptyTrans]))
+emptyExcept :: Trans -> (Trans, Except)
+emptyExcept t = (t, ((T.pack ""), [start t]))
 -- **** utils ****
 
 -- | longest common prefix

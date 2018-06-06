@@ -191,6 +191,13 @@ setFinal t n out = updateState t n f
             final = Just out
         }
 
+unFinal :: Trans -> Int -> Trans
+unFinal t n = updateState t n f
+    where
+        f state = state {
+            final = Nothing
+        }
+
 setOutput :: Trans -> Int -> Char -> Text -> Trans
 setOutput t n a out = updateState t n f
     where
