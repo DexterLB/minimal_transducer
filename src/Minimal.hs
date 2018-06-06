@@ -287,7 +287,8 @@ unminimiseTransition t (m, a, n)
     where
         (t'', newState) = addGivenState t' m a ((state t' n) { degree = 0 })
         t' = delTransition m a n unT
-        unT = delFromEquiv t n
+        -- unT = delFromEquiv t n
+        unT = t
 
 isConvergent :: Trans -> Int -> Bool
 isConvergent t n = degree (state t n) > 1

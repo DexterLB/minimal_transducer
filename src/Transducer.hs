@@ -219,7 +219,8 @@ updateState t n f
         newState = f oldState
         equiv'
             | oldState /= newState && (HashMap.lookup oldState (equiv t)) == (Just n)
-                = HashMap.insert newState n (HashMap.delete oldState (equiv t))
+                -- = HashMap.insert newState n (HashMap.delete oldState (equiv t))
+                = HashMap.delete oldState (equiv t)
 
             | otherwise = equiv t
     -- equiv doesn't need updating because updateState is only called
