@@ -132,7 +132,8 @@ delTransition from a to t
     | otherwise = undefined -- invariant
     where
         f state = state {
-                transition = HashMap.delete a (transition state)
+                transition = HashMap.delete a (transition state),
+                output     = HashMap.delete a (output state)
             }
         g i state = state {
             degree = (degree state) - 1
@@ -233,6 +234,9 @@ instance Show Trans where
 instance Show State where
     show = (foldr (++) "") . (map (++ "\n")) . ((curry showStateLines) (-1))
 
+showState :: (Int, State) -> String
+showState = unlines . showStateLines
+
 showTransLines :: Trans -> [String]
 showTransLines t
     =  (showTransDataLines t)
@@ -278,6 +282,16 @@ zipTransitions (State {transition, final, output}) = map getTransition keys
     where
         keys = HashMap.keys transition
         getTransition c = (c, transition HashMap.! c, HashMap.lookup c output)
+
+delFromEquiv :: Trans -> Int -> Trans
+delFromEquiv t n
+    | HashMap.lookup s (equiv t) == Just n
+        = t {
+            equiv = HashMap.delete s (equiv t)
+        }
+    | otherwise = t
+    where
+        s = state t n
 
 showVerifyEquivLines :: Trans -> [String]
 showVerifyEquivLines t

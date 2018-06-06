@@ -112,8 +112,8 @@ delWordU :: Trans
          -> Text
          -> Trans
 delWordU !t !word
-    | suffix /= "" = traceShow ("no_such_prefix", word) t
-    | final (state t lastState) == Nothing = traceShow ("no_such_word", word) t
+    | suffix /= "" = t
+    | final (state minT lastState) == Nothing = t
     | prefix /= word = error "prefix is not the word but the suffix is empty??"
     | otherwise = finalise (newT, unzipPath (start newT) zippedLeftPath)
     where
@@ -127,7 +127,7 @@ trim :: Trans -> [(Int, Char, Int)] -> (Trans, [(Int, Char, Int)])
 trim t ((prev, a, n):rest)
     | final (state t n) == Nothing && HashMap.size (transition (state t n)) == 0
         = trim (delState n t') rest
-    | otherwise = (t, reverse rest)
+    | otherwise = (t, reverse ((prev, a, n):rest))
     where
         t' = delTransition prev a n t
 trim t [] = (t, [])
@@ -283,10 +283,11 @@ unminimiseTransition t (m, a, n)
     | isConvergent t n =
         ( (bumpDegrees t'' (HashMap.elems $ transition $ state t'' newState))
         , newState )
-    | otherwise = (t, n)
+    | otherwise = (unT, n)
     where
-        (t'', newState) = addGivenState t' m a ((state t n) { degree = 0 })
-        t' = delTransition m a n t
+        (t'', newState) = addGivenState t' m a ((state t' n) { degree = 0 })
+        t' = delTransition m a n unT
+        unT = delFromEquiv t n
 
 isConvergent :: Trans -> Int -> Bool
 isConvergent t n = degree (state t n) > 1
@@ -308,7 +309,7 @@ minimiseTransition (from, a, to) t = checkEquiv toEquiv
             where
                 t' = (addTransition from a n $ delState to t)
 
-        toEquiv = HashMap.lookup ((states t) HashMap.! to) (equiv t)
+        toEquiv = HashMap.lookup (state t to) (equiv t)
 
 emptyExcept :: Trans -> (Trans, Except)
 emptyExcept t = (t, ((T.pack ""), [start t]))

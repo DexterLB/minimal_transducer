@@ -54,6 +54,9 @@ processArg t "prompt" = do
 processArg t "info" = do
     putStr $ info t
     return t
+processArg t ('d':'o':'t':':':filename) = do
+    writeFile filename $ dotifyTrans t
+    return t
 
 
 
