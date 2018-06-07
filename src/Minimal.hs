@@ -103,8 +103,6 @@ addWordU !t (!word, !output)
         newPath = prefixPath ++ (tail suffixPath)
         (tWithNewStates, suffixPath) = makePathAfter minT (last prefixPath) suffix
 
-        -- minimise the suffix of the previous word because it diverges
-        -- with the current word
         (prefix, prefixPath) = (unzipPath (start t) zippedPrefixPath)
         (minT, zippedPrefixPath, suffix) = unminimisePrefix t word
 
@@ -290,12 +288,14 @@ addGivenState t prevStateID a newState
 unminimiseTransition :: Trans -> (Int, Char, Int) -> (Trans, Int)
 unminimiseTransition t (m, a, n)
     | isConvergent t n =
-        ( (bumpDegrees t'' (HashMap.elems $ transition $ state t'' newState))
+        ( (bumpDegrees t3 (HashMap.elems $ transition $ state t3 newState))
         , newState )
     | otherwise = (unT, n)
     where
-        (t'', newState) = addGivenState t' m a ((state t' n) { degree = 0 })
+        t3 = setOutput t'' m a (outEmpty t m a)
+        (t'', newState) = addGivenState t' m a (s { degree = 0 })
         t' = delTransition m a n unT
+        s = state t' n
         -- unT = delFromEquiv t n
         unT = t
 
