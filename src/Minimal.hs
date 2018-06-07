@@ -80,9 +80,10 @@ addWordI (!t, (!prevWord, !prevPath)) (!word, !output)
         prefixLength                    = T.length prefix
         (prefix, prevSuffix, suffix)    = lcprefixes prevWord word
 
-addWordU :: Trans       -- ^ transducer, lastWord, lastPath
-         -> (Text, Text)          -- ^ newWord, output
-         -> Trans       -- ^ newTransducer, newWord, newPath
+-- | Add a word to a minimal transducer. Words added this way may be out of order.
+addWordU :: Trans           -- ^ transducer, lastWord, lastPath
+         -> (Text, Text)    -- ^ newWord, output
+         -> Trans           -- ^ newTransducer, newWord, newPath
 addWordU !t (!word, !output)
     | T.length suffix /= 0 = finalise (finalT, (word, newPath))
     | otherwise = finalise (newTNoSuffix, (word, newPath))
@@ -110,20 +111,20 @@ delWordU :: Trans
          -> Text
          -> Trans
 delWordU !t !word
-    | suffix /= "" = t
-    | final (state minT lastState) == Nothing = t
-    | prefix /= word = error "prefix is not the word but the suffix is empty??"
-    | otherwise = finalise (finalT, unzipPath (start finalT) zippedLeftPath)
-    -- | otherwise = finalT
+    | suffix /= "" = t  -- word is longer than its prefix in the transducer
+    | final (state minT lastState) == Nothing = t   -- last state is not final
+    | otherwise = finalise (finalT, unzipPath (start finalT) leftPath)
     where
-        finalT = foldr pullOutputs newT zippedLeftPath
-        (newT, zippedLeftPath) = trim (unFinal minT lastState) (reversedZippedPrefixPath)
+        -- move any free output prefixes backwards
+        finalT = foldr pullOutputs newT leftPath
 
-        reversedZippedPrefixPath = reverse zippedPrefixPath
+        -- make last state non-final and remove unused states
+        (newT, leftPath) = trim (unFinal minT lastState) $ reverse prefixPath
 
-        lastState = last prefixPath
-        (prefix, prefixPath) = (unzipPath (start minT) zippedPrefixPath)
-        (minT, zippedPrefixPath, suffix) = unminimisePrefix t word
+        lastState = (\(_, _, s) -> s) $ last prefixPath
+
+        -- make the transducer minimal except for the word
+        (minT, prefixPath, suffix) = unminimisePrefix t word
 
 trim :: Trans -> [(Int, Char, Int)] -> (Trans, [(Int, Char, Int)])
 trim t ((prev, a, n):rest)
