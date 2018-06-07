@@ -105,8 +105,8 @@ linePrompt jt = (" -> " ++) . T.unpack . deMaybe . (JT.match jt) . T.pack
 
 splitLine :: Text -> (Text, Text)
 splitLine s = (
-                   T.takeWhile (not . isSpace) s,
-        T.drop 1 $ T.dropWhile (not . isSpace) s
+                   T.takeWhile (not . ( == '\t')) s,
+        T.drop 1 $ T.dropWhile (not . ( == '\t')) s
     )
 
 deMaybe :: Maybe Text -> Text
