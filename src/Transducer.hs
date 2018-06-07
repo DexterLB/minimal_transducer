@@ -130,9 +130,9 @@ addTransition from a to t
 
 delTransition :: Int -> Char -> Int -> Trans -> Trans
 delTransition from a to t
-    | HashMap.lookup a (transition $ state t from) == Just to
+    -- | HashMap.lookup a (transition $ state t from) == Just to
          = updateState (updateState t to (g (from, a, to))) from f
-    | otherwise = undefined -- invariant
+    -- | otherwise = undefined -- invariant
     where
         f state = state {
                 transition = HashMap.delete a (transition state),
@@ -254,6 +254,7 @@ updateState t n f
                 = HashMap.delete oldState (equiv t)
 
             | otherwise = equiv t
+    -- update: the following is NOT TRUE anymore because of unminimisation.
     -- equiv doesn't need updating because updateState is only called
     -- before inserting a state in equiv
 

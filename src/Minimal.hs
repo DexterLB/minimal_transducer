@@ -126,6 +126,9 @@ delWordU !t !word
         -- make the transducer minimal except for the word
         (minT, prefixPath, suffix) = unminimisePrefix t word
 
+-- | takes a REVERSED path and removes states until it reaches a final or
+-- | divergent state. Returns the (non-reversed) path from the start to
+-- | the last untouched state.
 trim :: Trans -> [(Int, Char, Int)] -> (Trans, [(Int, Char, Int)])
 trim t ((prev, a, n):rest)
     | final (state t n) == Nothing && HashMap.size (transition (state t n)) == 0
@@ -135,6 +138,8 @@ trim t ((prev, a, n):rest)
         t' = delTransition prev a n t
 trim t [] = (t, [])
 
+-- | pull the common output prefix of the target state into the output
+-- | of the source state
 pullOutputs :: (Int, Char, Int) -> Trans -> Trans
 pullOutputs (from, a, to) t = appendToOutput t' from a commonPrefix
     where
@@ -167,12 +172,18 @@ addOutput t (p:q:wordPath) word output = addOutput newT (q:wordPath) w suffix
 minimiseWord :: Trans -> Text -> Trans
 minimiseWord t w = minimisePath t w (path t (start t) w)
 
+-- | if the transducer is minimal, it becomes minimal except for the longest
+-- | prefix of the given word that's in the transducer. Returns the resulting
+-- | transducer, the path of the prefix and the leftover suffix.
 unminimisePrefix :: Trans -> Text -> (Trans, [(Int, Char, Int)], Text)
 unminimisePrefix t w = (newTrans, newPath , rest)
     where
         (newTrans, newPath) = unminimiseZippedPath t path
         (path, rest) = traverseZipped t w
 
+-- | makes a minimal transducer minimal except for a path with the same word
+-- | as the given.
+-- | returns the resulting minimal-except path.
 unminimiseZippedPath :: Trans -> [(Int, Char, Int)] -> (Trans, [(Int, Char, Int)])
 unminimiseZippedPath t l = (t', reverse l')
     where
@@ -195,17 +206,22 @@ minimisePath t word wordPath = minimiseZippedPath t zipped
     where
         zipped = zipPath word wordPath
 
+-- | zips path into (from, letter, to) tuples
 zipPath :: Text -> [Int] -> [(Int, Char, Int)]
 zipPath word wordPath = zipWith
     (\(x, y) z -> (x, y, z))
     (zip wordPath (T.unpack word)) (tail wordPath)
 
+-- | unzips path from (from, letter, to) tuples. Needs a starting state to
+-- | handle empty paths.
 unzipPath :: Int -> [(Int, Char, Int)] -> (Text, [Int])
 unzipPath s path = (T.pack (map with path), s:(map to path))
     where
         with (_, a, _) = a
         to (_, _, n) = n
 
+-- | if the transducer is minimal except for the given zipped path, it becomes
+-- | minimal.
 minimiseZippedPath :: Trans -> [(Int, Char, Int)] -> Trans
 minimiseZippedPath t = foldr minimiseTransition t
 
@@ -269,6 +285,7 @@ addState t n a = addGivenState t n a $ State {
         degree = 0
     }
 
+-- | adds a new state after the given state with the given transition
 addGivenState :: Trans
          -> Int             -- ^ the state from which we make a transition
          -> Char            -- ^ with which symbol
@@ -285,20 +302,18 @@ addGivenState t prevStateID a newState
             newStateID = lastState t + 1
 
 
-
+-- | if the target state is convergent, clone it and return the new state ID
 unminimiseTransition :: Trans -> (Int, Char, Int) -> (Trans, Int)
 unminimiseTransition t (m, a, n)
     | isConvergent t n =
         ( (bumpDegrees t3 (HashMap.elems $ transition $ state t3 newState))
         , newState )
-    | otherwise = (unT, n)
+    | otherwise = (t, n)
     where
-        t3 = setOutput t'' m a (outEmpty t m a)
-        (t'', newState) = addGivenState t' m a (s { degree = 0 })
-        t' = delTransition m a n unT
-        s = state t' n
-        -- unT = delFromEquiv t n
-        unT = t
+        t3 = setOutput t2 m a (outEmpty t m a)
+        (t2, newState) = addGivenState t1 m a (s { degree = 0 })
+        s = state t1 n
+        t1 = delTransition m a n t
 
 isConvergent :: Trans -> Int -> Bool
 isConvergent t n = degree (state t n) > 1
