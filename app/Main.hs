@@ -59,6 +59,9 @@ processArg t "info" = do
 processArg t "dump_outputs" = do
     putStrLn $ unlines $ map (show . HashMap.elems . output) $ HashMap.elems $ states t
     return t
+processArg t "dump_dic" = do
+    putStrLn $ T.unpack $ dump t
+    return t
 processArg t ('d':'o':'t':':':filename) = do
     writeFile filename $ dotifyTrans t
     return t
@@ -78,6 +81,12 @@ doPrompt = interact . prompt
 
 jsonify :: Trans -> ByteString
 jsonify t = Aeson.encode $ toJsonTrans t
+
+dump :: Trans -> Text
+dump t = T.intercalate "\n" lines
+    where
+        lines :: [Text]
+        lines = map (\(w, o) -> T.append (T.append w "\t") o) $ dumpDic t
 
 info :: Trans -> String
 info t =  "build transducer with "

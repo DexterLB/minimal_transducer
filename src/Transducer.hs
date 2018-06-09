@@ -15,6 +15,8 @@ import qualified Data.Text as T
 import Data.Vector (Vector)
 import qualified Data.Vector as Vector
 
+import Data.List (sort)
+
 import qualified Data.List.Unique as Uniq
 
 import qualified JsonTransducer as JT
@@ -351,6 +353,26 @@ showFinalOutput (Just output) = " -> " ++ (T.unpack output)
 
 transitionCount :: Trans -> Int
 transitionCount Trans {states} = sum $ HashMap.map (\s -> HashMap.size $ transition s) states
+
+
+dumpDic :: Trans -> [(Text, Text)]
+dumpDic t = dumpDic' t (start t) ("", "")
+dumpDic' :: Trans -> Int -> (Text, Text) -> [(Text, Text)]
+dumpDic' t n (w, o)
+    | (Just t) <- final (state t n) = (w, T.append o t) : rest
+    | otherwise = rest
+    where
+        rest = foldr (++) [] langs
+
+        langs = map lang letters
+
+        lang letter = dumpDic'
+            t
+            ((transition $ state t n) HashMap.! letter)
+            ((T.snoc w letter), (T.append o ((output $ state t n) HashMap.! letter)))
+
+        letters = sort $ HashMap.keys $ transition $ state t n
+
 
 
 instance Hashable State where
