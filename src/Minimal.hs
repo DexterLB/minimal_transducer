@@ -324,18 +324,14 @@ isConvergent t n = degree (state t n) > 1
 minimiseTransition :: (Int, Char, Int) -> Trans -> Trans
 minimiseTransition (from, a, to) t = checkEquiv toEquiv
     where
-        checkEquiv Nothing = t {  -- state is unique, add it to the equivalence table
-                equiv = HashMap.insert (state t to) to (equiv t)
-            }
+        checkEquiv Nothing = addToEquiv t to
         checkEquiv (Just n)
             | n == to   = t   -- state is already part of the minimal path
-            | otherwise = t' {
-                    equiv = HashMap.insert (state t' n) n (equiv t')
-                }
+            | otherwise = addToEquiv t' n
             where
                 t' = (addTransition from a n $ delState to t)
 
-        toEquiv = HashMap.lookup (state t to) (equiv t)
+        toEquiv = getEquiv t to
 
 emptyExcept :: Trans -> (Trans, Except)
 emptyExcept t = (t, ((T.pack ""), [start t]))

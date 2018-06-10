@@ -96,14 +96,6 @@ state (Trans {states}) n
     | (Just s) <- HashMap.lookup n states = s
     | otherwise = error $ "state " ++ (show n) ++ " not found"
 
--- | updates the equivalence set to reflect the actual state, discarding the old one
-updateEquiv :: Trans -> Trans
-updateEquiv Trans {states, start, lastState} = Trans {
-    states = states,
-    start = start,
-    equiv = HashMap.fromList $ map (\(x, y) -> (y, x)) $  HashMap.toList states,
-    lastState = lastState
-}
 
 -- **** Mutations ****
 
@@ -169,16 +161,10 @@ bump key newValue m
 
 delState :: Int -> Trans -> Trans
 delState n t = t' {
-        states = HashMap.delete n (states t'),
-        equiv = equiv'
+        states = HashMap.delete n (states t')
     }
     where
-        equiv'
-            | HashMap.lookup targetState (equiv t') == Just n
-                = HashMap.delete targetState (equiv t')
-            | otherwise = equiv t'
-        targetState = state t' n
-        t' = (delTransitionsFor t n)
+        t' = delFromEquiv (delTransitionsFor t n) n
 
 
 prependToOutputs :: Trans -> Int -> Text -> Trans
@@ -243,19 +229,15 @@ setOutput t n a out = updateState t n f
 updateState :: Trans -> Int -> (State -> State) -> Trans
 updateState t n f
     | not $ HashMap.member n (states t) = t
-    | otherwise = t {
-            states = HashMap.insert n newState (states t),
-            equiv = equiv'
+    | otherwise = t' {
+            states = HashMap.insert n newState (states t)
         }
     where
-        oldState = state t n
         newState = f oldState
-        equiv'
-            | oldState /= newState && (HashMap.lookup oldState (equiv t)) == (Just n)
-                -- = HashMap.insert newState n (HashMap.delete oldState (equiv t))
-                = HashMap.delete oldState (equiv t)
-
-            | otherwise = equiv t
+        t'
+            | oldState == newState = t
+            | otherwise = delFromEquiv t n
+        oldState = state t n
     -- update: the following is NOT TRUE anymore because of unminimisation.
     -- equiv doesn't need updating because updateState is only called
     -- before inserting a state in equiv
@@ -327,6 +309,14 @@ delFromEquiv t n
     | otherwise = t
     where
         s = state t n
+
+addToEquiv :: Trans -> Int -> Trans
+addToEquiv t n = t {
+        equiv = HashMap.insert (state t n) n (equiv t)
+    }
+
+getEquiv :: Trans -> Int -> Maybe Int
+getEquiv t n = HashMap.lookup (state t n) (equiv t)
 
 showVerifyEquivLines :: Trans -> [String]
 showVerifyEquivLines t
