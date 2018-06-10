@@ -7,6 +7,9 @@ module Transducer where
 import qualified Data.HashMap.Strict as HashMap
 import Data.HashMap.Strict (HashMap)
 
+import qualified Data.HashSet as HashSet
+import Data.HashSet (HashSet)
+
 import Data.Hashable (hashWithSalt, Hashable)
 
 import Data.Text (Text)
@@ -302,21 +305,24 @@ zipTransitions (State {transition, final, output}) = map getTransition keys
 
 delFromEquiv :: Trans -> Int -> Trans
 delFromEquiv t n
-    | HashMap.lookup s (equiv t) == Just n
+    | isInEquiv t n
         = t {
-            equiv = HashMap.delete s (equiv t)
+            equiv = HashMap.delete (state t n) (equiv t),
+            inEquiv = HashSet.delete n (inEquiv t)
         }
     | otherwise = t
-    where
-        s = state t n
 
 addToEquiv :: Trans -> Int -> Trans
 addToEquiv t n = t {
-        equiv = HashMap.insert (state t n) n (equiv t)
+        equiv = HashMap.insert (state t n) n (equiv t),
+        inEquiv = HashSet.insert n (inEquiv t)
     }
 
 getEquiv :: Trans -> Int -> Maybe Int
 getEquiv t n = HashMap.lookup (state t n) (equiv t)
+
+isInEquiv :: Trans -> Int -> Bool
+isInEquiv t n = HashSet.member n (inEquiv t)
 
 showVerifyEquivLines :: Trans -> [String]
 showVerifyEquivLines t
@@ -487,7 +493,8 @@ data Trans = Trans {
     states :: HashMap Int State,
     equiv :: HashMap State Int,
     start :: Int,
-    lastState :: Int
+    lastState :: Int,
+    inEquiv :: HashSet Int
 } deriving (Eq)
 
 -- **** Utils ****
@@ -507,8 +514,9 @@ emptyTrans = Trans {
     states = HashMap.fromList [
         (1, State (HashMap.empty) Nothing (HashMap.empty) 0)
     ],
-    equiv = HashMap.fromList [],
-    lastState = 1
+    equiv = HashMap.empty,
+    lastState = 1,
+    inEquiv = HashSet.empty
 }
 
 -- **** utils ****
