@@ -103,38 +103,28 @@ addTransition :: Int -> Char -> Int -> Trans -> Trans
 addTransition from a to t
     | (Just oldTo) <- HashMap.lookup a (transition (state t from))
         = updateState (
-            updateState (
-              updateState (t) oldTo (h oldTo)
-            ) to (g (from, a, to))
+            updateDegree (
+              updateDegree t oldTo (\x -> x - 1)
+            ) to (+ 1)
           ) from f
-    | otherwise = updateState (updateState t to (g (from, a, to))) from f
+    | otherwise = updateState (updateDegree t to (+ 1)) from f
     where
         f state = state {
                 transition = HashMap.insert a to (transition state),
                 output = bump a "" (output state)
             }
-        g i state = state {
-            degree = (degree state) + 1
-        }
-
-        h i state = state {
-            degree = (degree state) - 1
-        }
 
 
 delTransition :: Int -> Char -> Int -> Trans -> Trans
 delTransition from a to t
     -- | HashMap.lookup a (transition $ state t from) == Just to
-         = updateState (updateState t to (g (from, a, to))) from f
+         = updateState (updateDegree t to (\x -> x - 1)) from f
     -- | otherwise = undefined -- invariant
     where
         f state = state {
                 transition = HashMap.delete a (transition state),
                 output     = HashMap.delete a (output state)
             }
-        g i state = state {
-            degree = (degree state) - 1
-        }
 
 delTransitionsFor :: Trans -> Int -> Trans
 delTransitionsFor t n = foldr f t outgoing
@@ -148,11 +138,7 @@ bumpDegrees :: Trans -> [Int] -> Trans
 bumpDegrees t = foldr bumpDegree t
 
 bumpDegree :: Int -> Trans -> Trans
-bumpDegree n t = updateState t n f
-    where
-        f state = state {
-            degree = degree state + 1
-        }
+bumpDegree n t = updateDegree t n (+ 1)
 
 bump :: (Eq k, Hashable k) => k -> v -> HashMap k v -> HashMap k v
 bump key newValue m
@@ -168,6 +154,7 @@ delState n t = t' {
 
 
 prependToOutputs :: Trans -> Int -> Text -> Trans
+prependToOutputs t _ "" = t
 prependToOutputs t n out = updateState t n f
     where
         f state = state {
@@ -176,6 +163,7 @@ prependToOutputs t n out = updateState t n f
         }
 
 appendToOutput :: Trans -> Int -> Char -> Text -> Trans
+appendToOutput t _ _ "" = t
 appendToOutput t n a suffix = updateState t n f
     where
         f state = state {
@@ -194,6 +182,7 @@ commonOutputPrefix t n
         s = state t n
 
 removeOutputPrefix :: Trans -> Int -> Text -> Trans
+removeOutputPrefix t _ "" = t
 removeOutputPrefix t n prefix = updateState t n f
     where
         f state = state {
@@ -226,21 +215,32 @@ setOutput t n a out = updateState t n f
         }
 
 -- | updates a state both in the state table
+-- updateState :: Trans -> Int -> (State -> State) -> Trans
+-- updateState t n f
+--     | not $ HashMap.member n (states t) = error "fck u"
+-- -- equiv doesn't need updating because updateState is only called
+-- -- before inserting a state in equiv. uncomment the following check to verify:
+-- --    | HashMap.lookup (state t n) (equiv t) == Just n = error $ "trying to update state " ++ (show n) ++ " which is in equiv"
+--     | otherwise = t {
+--             states = HashMap.insert n newState (states t)
+--         }
+--     where
+--         newState = f oldState
+--         oldState = state t n
+
+-- | updates a state both in the state table
 updateState :: Trans -> Int -> (State -> State) -> Trans
-updateState t n f
-    | not $ HashMap.member n (states t) = t
-    | otherwise = t' {
-            states = HashMap.insert n newState (states t)
+updateState t n f = t {
+        states = HashMap.adjust f n (states t)
+    }
+
+updateDegree :: Trans -> Int -> (Int -> Int) -> Trans
+updateDegree t n f  = t {
+            states = HashMap.adjust update n (states t)
         }
     where
-        newState = f oldState
-        t'
-            | oldState == newState = t
-            | otherwise = delFromEquiv t n
-        oldState = state t n
-    -- update: the following is NOT TRUE anymore because of unminimisation.
-    -- equiv doesn't need updating because updateState is only called
-    -- before inserting a state in equiv
+        update s = s { degree = f (degree s) }
+
 
 
 -- **** Prints ****
@@ -301,14 +301,14 @@ zipTransitions (State {transition, final, output}) = map getTransition keys
         getTransition c = (c, transition HashMap.! c, HashMap.lookup c output)
 
 delFromEquiv :: Trans -> Int -> Trans
-delFromEquiv t n
-    | HashMap.lookup s (equiv t) == Just n
-        = t {
-            equiv = HashMap.delete s (equiv t)
+delFromEquiv t n = t {
+            equiv = HashMap.alter f (state t n) (equiv t)
         }
-    | otherwise = t
     where
-        s = state t n
+        f Nothing = Nothing
+        f (Just x)
+            | x == n = Nothing
+            | otherwise = Just x
 
 addToEquiv :: Trans -> Int -> Trans
 addToEquiv t n = t {

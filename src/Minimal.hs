@@ -308,12 +308,13 @@ unminimiseTransition t (m, a, n)
     | isConvergent t n =
         ( (bumpDegrees t3 (HashMap.elems $ transition $ state t3 newState))
         , newState )
-    | otherwise = (t, n)
+    | otherwise = (delFromEquiv t n, n)
     where
         t3 = setOutput t2 m a (outEmpty t m a)
         (t2, newState) = addGivenState t1 m a (s { degree = 0 })
         s = state t1 n
-        t1 = delTransition m a n t
+        t1 = delTransition m a n t0
+        t0 = delFromEquiv t m
 
 isConvergent :: Trans -> Int -> Bool
 isConvergent t n = degree (state t n) > 1
