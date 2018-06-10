@@ -281,8 +281,7 @@ addState :: Trans
 addState t n a = addGivenState t n a $ State {
         transition = HashMap.empty,
         final = Nothing,
-        output = HashMap.empty,
-        degree = 0
+        output = HashMap.empty
     }
 
 -- | adds a new state after the given state with the given transition
@@ -296,6 +295,7 @@ addGivenState t prevStateID a newState
         where
             t' = addTransition prevStateID a newStateID $ t {
                 states = HashMap.insert newStateID newState (states t),
+                degrees = HashMap.insert newStateID 0 (degrees t),
                 lastState = newStateID
             }
 
@@ -311,13 +311,13 @@ unminimiseTransition t (m, a, n)
     | otherwise = (delFromEquiv t n, n)
     where
         t3 = setOutput t2 m a (outEmpty t m a)
-        (t2, newState) = addGivenState t1 m a (s { degree = 0 })
+        (t2, newState) = addGivenState t1 m a (s)
         s = state t1 n
         t1 = delTransition m a n t0
         t0 = delFromEquiv t m
 
 isConvergent :: Trans -> Int -> Bool
-isConvergent t n = degree (state t n) > 1
+isConvergent t n = degree t n > 1
 
 -- | checks if there's a state which is equivalent to the target state.
 -- | If there is, the target state is deleted and the transition is pointed
