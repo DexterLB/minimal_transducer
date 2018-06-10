@@ -236,11 +236,10 @@ updateState t n f = t {
 
 updateDegree :: Trans -> Int -> (Int -> Int) -> Trans
 updateDegree t n f  = t {
-            degrees = HashMap.adjust f n (degrees t)
+            states = HashMap.adjust update n (states t)
         }
-
-degree :: Trans -> Int -> Int
-degree t n = (degrees t) HashMap.! n
+    where
+        update s = s { degree = f (degree s) }
 
 
 
@@ -284,11 +283,11 @@ showStateLines (n, State {transition, final, output})
     ++ (showFinalLines final)
 
 dotifyState :: (Int, State) -> [String]
-dotifyState (n, State {transition, final, output})
-    =  [(show n) ++ " [label=\"" ++ (show n) ++ (showFinalOutput final) ++ "\"];"]
+dotifyState (n, State {transition, final, output, degree})
+    =  [(show n) ++ " [label=\"" ++ (show n) ++ (showFinalOutput final) ++ " [" ++ (show degree) ++ "]\"];"]
     ++ (map
         (dotifyTransition n)
-        (zipTransitions (State {transition, final, output}))
+        (zipTransitions (State {transition, final, output, degree}))
        )
 
 dotifyTransition :: Int -> (Char, Int, Maybe Text) -> String
@@ -477,7 +476,8 @@ data Void = Void Void
 data State = State {
     transition :: HashMap Char Int,
     final :: Maybe Text,
-    output :: HashMap Char Text
+    output :: HashMap Char Text,
+    degree :: Int
 }
 
 instance Eq State where
@@ -487,8 +487,7 @@ data Trans = Trans {
     states :: HashMap Int State,
     equiv :: HashMap State Int,
     start :: Int,
-    lastState :: Int,
-    degrees :: HashMap Int Int
+    lastState :: Int
 } deriving (Eq)
 
 -- **** Utils ****
@@ -506,11 +505,10 @@ emptyTrans :: Trans
 emptyTrans = Trans {
     start = 1,
     states = HashMap.fromList [
-        (1, State (HashMap.empty) Nothing (HashMap.empty))
+        (1, State (HashMap.empty) Nothing (HashMap.empty) 0)
     ],
     equiv = HashMap.fromList [],
-    lastState = 1,
-    degrees = HashMap.empty
+    lastState = 1
 }
 
 -- **** utils ****
