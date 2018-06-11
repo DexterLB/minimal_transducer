@@ -20,9 +20,10 @@ import qualified Data.Conduit.Combinators as Co
 
 import Data.Text (Text)
 import qualified Data.Text as T
-import qualified Data.Text.IO as TI
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.IO as TI
 
-import System.IO (hPutStrLn, stderr)
+import System.IO (hPutStr, stderr)
 
 
 import Data.ByteString.Lazy (ByteString)
@@ -73,21 +74,31 @@ processArg t ('d':'o':'t':':':filename) = do
 
 
 simpleProgress :: Trans -> String
-simpleProgress t = "states: " ++ (show $ length $ states t)
+simpleProgress t = "states: " ++ (show $ stateCount t)
+
+countLines :: String -> IO Int
+countLines file = do
+    allText <- TI.readFile file
+    return $ length $ TL.lines allText
+
 
 processDic :: a -> (a -> (Text, Text) -> a) -> (a -> String) -> String -> IO a
 processDic t f prog file = do
     allText <- TI.readFile file
-    let lines = T.lines allText
-    (_, [], t) <- processChunk f prog (length lines) (0, lines, t)
+    let lines = map TL.toStrict $ TL.lines allText
+    numLines <- countLines file
+    (_, [], t) <- processChunk f prog (numLines) (0, lines, t)
     return t
 
 processChunk :: (a -> (Text, Text) -> a) -> (a -> String) -> Int -> (Int, [Text], a) -> IO (Int, [Text], a)
-processChunk f prog _ (n, [], t) = pure (n, [], t)
+processChunk f prog _ (n, [], t) = do
+    hPutStr stderr "\n"
+    return (n, [], t)
+
 processChunk f prog total (n, line:lines, !t) = do
     let t' = f t (splitLine line)
-    case n `mod` 10000 of
-        0 -> hPutStrLn stderr $ "progress: " ++ (show n) ++ "/" ++ (show total) ++ " (" ++ (show $ (n * 100) `div` total) ++ "%) " ++ (prog t)
+    case n `mod` 100000 of
+        0 -> hPutStr stderr $ "\rprogress: " ++ (show n) ++ "/" ++ (show total) ++ " (" ++ (show $ (n * 100) `div` total) ++ "%) " ++ (prog t) ++ "  "
         _ -> pure ()
 
     result <- processChunk f prog total (n + 1, lines, t')
@@ -107,7 +118,7 @@ dump t = T.intercalate "\n" lines
 
 info :: Trans -> String
 info t =  "build transducer with "
-        ++ (show $ length $ states t)
+        ++ (show $ stateCount t)
         ++ " states and "
         ++ (show $ transitionCount t)
         ++ " transitions.\n"

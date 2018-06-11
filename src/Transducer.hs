@@ -344,6 +344,8 @@ showFinalOutput (Just output) = " -> " ++ (T.unpack output)
 transitionCount :: Trans -> Int
 transitionCount Trans {states} = sum $ HashMap.map (\s -> HashMap.size $ transition s) states
 
+stateCount :: Trans -> Int
+stateCount t = HashMap.size $ states t
 
 dumpDic :: Trans -> [(Text, Text)]
 dumpDic t = dumpDic' t (start t) ("", "")
