@@ -1,5 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Main where
 
@@ -19,6 +20,10 @@ import qualified Data.Conduit.Combinators as Co
 
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.IO as TI
+
+import System.IO (hPutStrLn, stderr)
+
 
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as ByteString
@@ -44,10 +49,10 @@ processArg t ('j':'s':'o':'n':':':filename) = do
     ByteString8.writeFile filename $ jsonify t
     return t
 processArg t ('s':'o':'r':'t':'e':'d':':':dic) = do
-    result <- processDic (emptyExcept t) addWordI dic
+    result <- processDic (emptyExcept t) addWordI (simpleProgress . fst) dic
     return $ finalise result
-processArg t ('a':'d':'d':':':dic) = processDic t addWordU dic
-processArg t ('d':'e':'l':':':dic) = processDic t del dic
+processArg t ('a':'d':'d':':':dic) = processDic t addWordU simpleProgress dic
+processArg t ('d':'e':'l':':':dic) = processDic t del simpleProgress dic
     where
         del t (word, _) = delWordU t word
 processArg t "prompt" = do
@@ -67,14 +72,26 @@ processArg t ('d':'o':'t':':':filename) = do
     return t
 
 
+simpleProgress :: Trans -> String
+simpleProgress t = "states: " ++ (show $ length $ states t)
 
-processDic :: a -> (a -> (Text, Text) -> a) -> String -> IO a
-processDic t f file = runConduitRes $
-        (Co.sourceFile  file )
-    .| Co.decodeUtf8
-    .| Co.linesUnbounded
-    .| Co.map splitLine
-    .| Co.foldl f t
+processDic :: a -> (a -> (Text, Text) -> a) -> (a -> String) -> String -> IO a
+processDic t f prog file = do
+    allText <- TI.readFile file
+    let lines = T.lines allText
+    (_, [], t) <- processChunk f prog (length lines) (0, lines, t)
+    return t
+
+processChunk :: (a -> (Text, Text) -> a) -> (a -> String) -> Int -> (Int, [Text], a) -> IO (Int, [Text], a)
+processChunk f prog _ (n, [], t) = pure (n, [], t)
+processChunk f prog total (n, line:lines, !t) = do
+    let t' = f t (splitLine line)
+    case n `mod` 10000 of
+        0 -> hPutStrLn stderr $ "progress: " ++ (show n) ++ "/" ++ (show total) ++ " (" ++ (show $ (n * 100) `div` total) ++ "%) " ++ (prog t)
+        _ -> pure ()
+
+    result <- processChunk f prog total (n + 1, lines, t')
+    return result
 
 doPrompt :: Trans -> IO ()
 doPrompt = interact . prompt
