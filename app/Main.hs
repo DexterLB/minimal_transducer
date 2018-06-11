@@ -23,6 +23,8 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.IO as TI
 
+import Data.Time.Clock
+
 import System.IO (hPutStr, stderr)
 
 
@@ -84,10 +86,15 @@ countLines file = do
 
 processDic :: a -> (a -> (Text, Text) -> a) -> (a -> String) -> String -> IO a
 processDic t f prog file = do
+    startTime <- getCurrentTime
     allText <- TI.readFile file
     let lines = map TL.toStrict $ TL.lines allText
     numLines <- countLines file
-    (_, [], t) <- processChunk f prog (numLines) (0, lines, t)
+    (_, [], !t) <- processChunk f prog (numLines) (0, lines, t)
+    endTime <- getCurrentTime
+
+    hPutStr stderr $ "that took " ++ (show $ diffUTCTime endTime startTime) ++ "\n"
+
     return t
 
 processChunk :: (a -> (Text, Text) -> a) -> (a -> String) -> Int -> (Int, [Text], a) -> IO (Int, [Text], a)
@@ -98,7 +105,7 @@ processChunk f prog _ (n, [], t) = do
 processChunk f prog total (n, line:lines, !t) = do
     let t' = f t (splitLine line)
     case (n `mod` 100000) == 0 || n == total - 1 of
-        True -> hPutStr stderr $ "\rprogress: " ++ (show (n + 1)) ++ "/" ++ (show total) ++ " (" ++ (show $ ((n + 1) * 100) `div` total) ++ "%) " ++ (prog t) ++ "  "
+        True -> hPutStr stderr $ "\rprogress: " ++ (show (n + 1)) ++ "/" ++ (show total) ++ " (" ++ (show $ ((n + 1) * 100) `div` total) ++ "%) " ++ (prog t') ++ "        "
         False -> pure ()
 
     result <- processChunk f prog total (n + 1, lines, t')
@@ -117,7 +124,7 @@ dump t = T.intercalate "\n" lines
         lines = map (\(w, o) -> T.append (T.append w "\t") o) $ dumpDic t
 
 info :: Trans -> String
-info t =  "build transducer with "
+info t =  "built transducer with "
         ++ (show $ stateCount t)
         ++ " states and "
         ++ (show $ transitionCount t)
