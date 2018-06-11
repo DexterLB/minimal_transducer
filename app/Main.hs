@@ -97,9 +97,9 @@ processChunk f prog _ (n, [], t) = do
 
 processChunk f prog total (n, line:lines, !t) = do
     let t' = f t (splitLine line)
-    case n `mod` 100000 of
-        0 -> hPutStr stderr $ "\rprogress: " ++ (show n) ++ "/" ++ (show total) ++ " (" ++ (show $ (n * 100) `div` total) ++ "%) " ++ (prog t) ++ "  "
-        _ -> pure ()
+    case (n `mod` 100000) == 0 || n == total - 1 of
+        True -> hPutStr stderr $ "\rprogress: " ++ (show (n + 1)) ++ "/" ++ (show total) ++ " (" ++ (show $ ((n + 1) * 100) `div` total) ++ "%) " ++ (prog t) ++ "  "
+        False -> pure ()
 
     result <- processChunk f prog total (n + 1, lines, t')
     return result
